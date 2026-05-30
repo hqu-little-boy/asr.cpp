@@ -161,3 +161,15 @@ TEST(Args, VadRequiresModel) {
     EXPECT_TRUE(a.error);
     EXPECT_NE(a.error_msg.find("vad-model"), std::string::npos);
 }
+
+TEST(Args, LanguageFlag) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-l", "Chinese"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_EQ(a.transcribe.language, "Chinese");
+}
+
+TEST(Args, LanguageFlagLong) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "--language", "English"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_EQ(a.transcribe.language, "English");
+}

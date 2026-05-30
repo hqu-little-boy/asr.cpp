@@ -25,6 +25,7 @@ add_library(asr_core STATIC
     src/asr_args.cpp
     src/asr_merge.cpp
     src/asr_carry.cpp
+    src/asr_postprocess.cpp
 )
 target_include_directories(asr_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(asr_core PUBLIC cxx_std_17)
@@ -90,6 +91,7 @@ if(ASR_BUILD_TESTS)
         test_merge
         test_carry
         test_srt_vtt
+        test_postprocess
     )
     foreach(t ${ASR_CORE_TESTS})
         add_executable(${t} tests/${t}.cpp)

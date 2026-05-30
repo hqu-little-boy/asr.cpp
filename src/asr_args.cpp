@@ -92,6 +92,8 @@ cli_args parse_args(int argc, const char * const * argv) {
             a.model.mmproj_use_gpu = false;
         } else if (arg == "--context") {
             if (const char * v = need(i, arg)) a.transcribe.context = v;
+        } else if (arg == "-l" || arg == "--language") {
+            if (const char * v = need(i, arg)) a.transcribe.language = v;
         } else if (arg == "--profile") {
             if (const char * v = need(i, arg)) a.model.profile_override = v;
         } else if (arg == "--carry-context") {
@@ -168,6 +170,7 @@ std::string usage_string(const char * argv0) {
     s += "  -t,   --threads N         number of threads\n";
     s += "  -ng,  --no-gpu            disable GPU\n";
     s += "        --context TEXT      context / hotwords bias\n";
+    s += "  -l,   --language LANG    force language (skip auto-detection)\n";
     s += "        --chunk-length N    chunk length in seconds\n";
     s += "        --profile NAME      override model profile\n";
     s += "        --carry-context     feed prior transcript as context (experimental)\n";

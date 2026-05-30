@@ -148,8 +148,15 @@ chunk_text asr_context::transcribe_chunk(const std::vector<float> & pcm, const t
     msg.role    = "user";
     msg.content = s.prof->build_prompt(tp, mtmd_default_marker());
     std::vector<common_chat_msg> history;
-    const std::string formatted =
+    std::string formatted =
         common_chat_format_single(s.tmpls.get(), history, msg, /*add_ass*/ true, s.use_jinja);
+
+    // When --language is set, prefill "language <X><asr_text>" to skip the
+    // model's auto-detection preamble and get pure transcription output.
+    const bool language_forced = !tp.language.empty();
+    if (language_forced) {
+        formatted += "language " + tp.language + "<asr_text>";
+    }
 
     mtmd_input_text text;
     text.text          = formatted.c_str();
@@ -202,6 +209,18 @@ chunk_text asr_context::transcribe_chunk(const std::vector<float> & pcm, const t
         }
     }
 
+    // When language was forced via prefill, the model outputs pure transcription
+    // (no "language X<asr_text>" prefix). Otherwise, parse the protocol.
+    if (language_forced) {
+        chunk_text ct;
+        // Trim leading/trailing whitespace.
+        size_t b = 0, e = raw.size();
+        while (b < e && std::isspace((unsigned char) raw[b])) ++b;
+        while (e > b && std::isspace((unsigned char) raw[e - 1])) --e;
+        ct.text     = raw.substr(b, e - b);
+        ct.language = tp.language;
+        return ct;
+    }
     return s.prof->parse_output(raw);
 }
 
