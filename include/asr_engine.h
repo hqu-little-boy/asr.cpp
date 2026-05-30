@@ -1,0 +1,40 @@
+#pragma once
+
+#include "asr.h"
+
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace asr {
+
+// The mtmd-backed ASR engine: owns the llama model, mtmd context, sampler and
+// chat templates, and the selected per-model profile. One instance is reused
+// across chunks; each transcribe_chunk() resets the context so chunks are
+// independent.
+class asr_context {
+  public:
+    // Load model + mmproj and select the profile. Returns nullptr on failure.
+    static std::unique_ptr<asr_context> load(const model_params & mp);
+    ~asr_context();
+
+    asr_context(const asr_context &)             = delete;
+    asr_context & operator=(const asr_context &) = delete;
+
+    // Transcribe one chunk of mono PCM (at sample_rate()) in an independent
+    // context. Returns {text, language} parsed by the profile.
+    chunk_text transcribe_chunk(const std::vector<float> & pcm, const transcribe_params & tp);
+
+    // Decode an audio file to mono PCM at the model's sample rate.
+    bool load_audio(const std::string & path, std::vector<float> & out_pcm) const;
+
+    int                 sample_rate() const;
+    const std::string & profile_name() const;
+
+  private:
+    asr_context();
+    struct impl;
+    std::unique_ptr<impl> p_;
+};
+
+} // namespace asr

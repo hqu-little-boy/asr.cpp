@@ -2,6 +2,15 @@
 
 #include <cstdio>
 
+#ifdef ASR_WITH_ENGINE
+#include "asr_engine.h"
+#include "asr_driver.h"
+#include "asr_output.h"
+
+#include <fstream>
+#include <string>
+#endif
+
 int main(int argc, char ** argv) {
     const asr::cli_args args = asr::parse_args(argc, argv);
 
@@ -16,9 +25,45 @@ int main(int argc, char ** argv) {
     }
 
 #ifdef ASR_WITH_ENGINE
-    // Phase 2 wires the mtmd engine + driver here.
-    std::fprintf(stderr, "asr-cli: engine path not yet implemented\n");
-    return 0;
+    auto ctx = asr::asr_context::load(args.model);
+    if (!ctx) {
+        std::fprintf(stderr, "error: failed to load model / mmproj\n");
+        return 1;
+    }
+
+    int ret = 0;
+    for (const auto & file : args.input_files) {
+        asr::result r;
+        if (!asr::transcribe_file(*ctx, file, args.transcribe, args.output.no_prints, r)) {
+            ret = 1;
+            continue;
+        }
+
+        if (args.output.out_txt || args.output.out_json) {
+            const std::string base = args.output.out_base.empty() ? file : args.output.out_base;
+            if (args.output.out_txt) {
+                std::ofstream f(base + ".txt");
+                if (f) {
+                    asr::write_txt(f, r);
+                    if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.txt\n", base.c_str());
+                } else {
+                    std::fprintf(stderr, "error: cannot write %s.txt\n", base.c_str());
+                    ret = 1;
+                }
+            }
+            if (args.output.out_json) {
+                std::ofstream f(base + ".json");
+                if (f) {
+                    asr::write_json(f, r);
+                    if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.json\n", base.c_str());
+                } else {
+                    std::fprintf(stderr, "error: cannot write %s.json\n", base.c_str());
+                    ret = 1;
+                }
+            }
+        }
+    }
+    return ret;
 #else
     std::fprintf(stderr,
                  "asr-cli built without engine (ASR_BUILD_ENGINE=OFF); "

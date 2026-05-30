@@ -42,8 +42,26 @@ target_link_libraries(asr-cli PRIVATE asr_core)
 if(ASR_BUILD_ENGINE)
     set(LLAMA_BUILD_COMMON ON CACHE BOOL "" FORCE)
     add_subdirectory(llama.cpp)
+    # tools/mtmd is added directly (not via llama.cpp's own tools/ subdir), so it
+    # does not inherit LLAMA_INSTALL_VERSION from llama.cpp's subdirectory scope.
+    # Define it here so mtmd's set_target_properties(VERSION ...) is well-formed.
+    set(LLAMA_INSTALL_VERSION 0.0.0)
     add_subdirectory(llama.cpp/tools/mtmd ${CMAKE_BINARY_DIR}/mtmd-build)
-    # asr_engine library + CLI transcription wiring are added in Phase 2.
+
+    # mtmd-backed engine library.
+    add_library(asr_engine STATIC
+        src/asr_gguf.cpp
+        src/asr_audio.cpp
+        src/asr_engine.cpp
+        src/asr_driver.cpp
+    )
+    target_include_directories(asr_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(asr_engine PUBLIC asr_core mtmd llama-common)
+    target_compile_features(asr_engine PRIVATE cxx_std_17)
+
+    # Wire the CLI to the engine.
+    target_link_libraries(asr-cli PRIVATE asr_engine)
+    target_compile_definitions(asr-cli PRIVATE ASR_WITH_ENGINE)
 endif()
 
 # ---------------------------------------------------------------------------
@@ -69,4 +87,19 @@ if(ASR_BUILD_TESTS)
         target_link_libraries(${t} PRIVATE asr_core GTest::gtest_main)
         gtest_discover_tests(${t})
     endforeach()
+
+    # Engine tests build whenever the engine is built; the model-dependent ones
+    # skip at runtime unless ASR_RUN_MODEL_TESTS is set (see the test bodies).
+    if(ASR_BUILD_ENGINE)
+        set(ASR_ENGINE_TESTS
+            test_gguf_projector_type
+            test_e2e_transcribe
+        )
+        foreach(t ${ASR_ENGINE_TESTS})
+            add_executable(${t} tests/${t}.cpp)
+            target_link_libraries(${t} PRIVATE asr_engine GTest::gtest_main)
+            target_compile_definitions(${t} PRIVATE ASR_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+            gtest_discover_tests(${t})
+        endforeach()
+    endif()
 endif()
