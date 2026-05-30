@@ -23,6 +23,7 @@ add_library(asr_core STATIC
     src/asr_chunker.cpp
     src/asr_output.cpp
     src/asr_args.cpp
+    src/asr_merge.cpp
 )
 target_include_directories(asr_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(asr_core PUBLIC cxx_std_17)
