@@ -50,7 +50,14 @@ if(ASR_BUILD_TESTS)
     find_package(GTest REQUIRED)
     include(GoogleTest)
 
-    add_executable(test_smoke tests/test_smoke.cpp)
-    target_link_libraries(test_smoke PRIVATE asr_core GTest::gtest_main)
-    gtest_discover_tests(test_smoke)
+    # Pure-logic tests link only against asr_core (no model required).
+    set(ASR_CORE_TESTS
+        test_smoke
+        test_parse_qwen3a
+    )
+    foreach(t ${ASR_CORE_TESTS})
+        add_executable(${t} tests/${t}.cpp)
+        target_link_libraries(${t} PRIVATE asr_core GTest::gtest_main)
+        gtest_discover_tests(${t})
+    endforeach()
 endif()
