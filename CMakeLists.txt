@@ -49,6 +49,12 @@ if(ASR_BUILD_ENGINE)
     set(LLAMA_INSTALL_VERSION 0.0.0)
     add_subdirectory(llama.cpp/tools/mtmd ${CMAKE_BINARY_DIR}/mtmd-build)
 
+    # FireRedVAD (DFSMN) voice-activity detector — links only ggml (for gguf).
+    add_library(asr_vad STATIC src/asr_vad.cpp)
+    target_include_directories(asr_vad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_link_libraries(asr_vad PUBLIC ggml)
+    target_compile_features(asr_vad PRIVATE cxx_std_17)
+
     # mtmd-backed engine library.
     add_library(asr_engine STATIC
         src/asr_gguf.cpp
