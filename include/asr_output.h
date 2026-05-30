@@ -57,4 +57,11 @@ struct cue_params {
 };
 std::vector<subtitle_cue> split_cues(const result & r, const cue_params & p = {});
 
+// Write LRC (lyrics) format: "[mm:ss.xx]text" per cue.
+void write_lrc(std::ostream & os, const std::vector<subtitle_cue> & cues);
+
+// Write CSV format: "start,end,text" header + one row per cue.
+// Times are in seconds (float), text is JSON-escaped and quoted.
+void write_csv(std::ostream & os, const std::vector<subtitle_cue> & cues);
+
 } // namespace asr

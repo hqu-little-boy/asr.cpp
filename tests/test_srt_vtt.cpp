@@ -14,6 +14,8 @@ using asr::split_cues;
 using asr::subtitle_cue;
 using asr::to_srt_timestamp;
 using asr::to_vtt_timestamp;
+using asr::write_csv;
+using asr::write_lrc;
 using asr::write_srt;
 using asr::write_vtt;
 
@@ -183,4 +185,44 @@ TEST(CueSplit, MultiSegmentIndicesCarry) {
     ASSERT_EQ(cues.size(), 4u);
     EXPECT_EQ(cues[0].index, 1);
     EXPECT_EQ(cues[2].index, 3); // second segment continues numbering
+}
+
+// ---- LRC writer ----
+
+TEST(LrcWriter, Basic) {
+    std::vector<subtitle_cue> cues = {{1, 0, 2500, "hello"}, {2, 2500, 5000, "world"}};
+    std::ostringstream os;
+    write_lrc(os, cues);
+    EXPECT_EQ(os.str(), "[00:00.00]hello\n[00:02.50]world\n");
+}
+
+TEST(LrcWriter, Empty) {
+    std::ostringstream os;
+    write_lrc(os, {});
+    EXPECT_EQ(os.str(), "");
+}
+
+// ---- CSV writer ----
+
+TEST(CsvWriter, Basic) {
+    std::vector<subtitle_cue> cues = {{1, 0, 2500, "hello"}, {2, 2500, 5000, "world"}};
+    std::ostringstream os;
+    write_csv(os, cues);
+    EXPECT_EQ(os.str(),
+              "start,end,text\n"
+              "0,2.5,\"hello\"\n"
+              "2.5,5,\"world\"\n");
+}
+
+TEST(CsvWriter, Escaping) {
+    std::vector<subtitle_cue> cues = {{1, 0, 1000, "a\"b\nc"}};
+    std::ostringstream os;
+    write_csv(os, cues);
+    EXPECT_NE(os.str().find("\"a\\\"b\\nc\""), std::string::npos);
+}
+
+TEST(CsvWriter, Empty) {
+    std::ostringstream os;
+    write_csv(os, {});
+    EXPECT_EQ(os.str(), "start,end,text\n");
 }

@@ -69,6 +69,8 @@ struct output_params {
     bool        out_json  = false;      // -oj
     bool        out_srt   = false;      // -osrt
     bool        out_vtt   = false;      // -ovtt
+    bool        out_lrc   = false;      // -olrc
+    bool        out_csv   = false;      // -ocsv
     bool        no_prints = false;      // -np
 };
 

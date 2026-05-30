@@ -69,6 +69,21 @@ cli_args parse_args(int argc, const char * const * argv) {
             a.output.out_srt = true;
         } else if (arg == "-ovtt") {
             a.output.out_vtt = true;
+        } else if (arg == "-olrc") {
+            a.output.out_lrc = true;
+        } else if (arg == "-ocsv") {
+            a.output.out_csv = true;
+        } else if (arg == "--output-format") {
+            if (const char * v = need(i, arg)) {
+                const std::string fmt = v;
+                if (fmt == "txt" || fmt == "text")    { a.output.out_txt  = true; }
+                else if (fmt == "json")                { a.output.out_json = true; }
+                else if (fmt == "srt")                 { a.output.out_srt  = true; }
+                else if (fmt == "vtt")                 { a.output.out_vtt  = true; }
+                else if (fmt == "lrc")                 { a.output.out_lrc  = true; }
+                else if (fmt == "csv")                 { a.output.out_csv  = true; }
+                else { a.error = true; a.error_msg = "unknown format: " + fmt; }
+            }
         } else if (arg == "--vad") {
             a.vad.use_vad = true;
         } else if (arg == "--vad-model") {
@@ -178,6 +193,9 @@ std::string usage_string(const char * argv0) {
     s += "  -oj                       write .json transcription\n";
     s += "  -osrt                     write .srt subtitles\n";
     s += "  -ovtt                     write .vtt subtitles\n";
+    s += "  -olrc                     write .lrc lyrics\n";
+    s += "  -ocsv                     write .csv (start,end,text)\n";
+    s += "        --output-format FMT  output format: txt|json|srt|vtt|lrc|csv\n";
     s += "  -np,  --no-prints         only print results\n";
     s += "  -t,   --threads N         number of threads\n";
     s += "  -ng,  --no-gpu            disable GPU\n";

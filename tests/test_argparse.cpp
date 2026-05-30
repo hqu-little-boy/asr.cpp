@@ -190,3 +190,25 @@ TEST(Args, SamplingParamsDefault) {
     EXPECT_LT(a.transcribe.top_p, 0.0f);
     EXPECT_LT(a.transcribe.repeat_penalty, 0.0f);
 }
+
+TEST(Args, LrcCsvFlags) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-olrc", "-ocsv"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_TRUE(a.output.out_lrc);
+    EXPECT_TRUE(a.output.out_csv);
+}
+
+TEST(Args, OutputFormatFlag) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
+                    "--output-format", "srt", "--output-format", "csv"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_TRUE(a.output.out_srt);
+    EXPECT_TRUE(a.output.out_csv);
+}
+
+TEST(Args, OutputFormatUnknown) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
+                    "--output-format", "xyz"});
+    EXPECT_TRUE(a.error);
+    EXPECT_NE(a.error_msg.find("unknown format"), std::string::npos);
+}

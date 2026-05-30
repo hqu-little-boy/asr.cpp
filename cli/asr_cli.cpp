@@ -82,7 +82,8 @@ int main(int argc, char ** argv) {
         const std::string base = args.output.out_base.empty() ? file : args.output.out_base;
 
         std::vector<asr::subtitle_cue> cues;
-        if (args.output.out_srt || args.output.out_vtt) {
+        if (args.output.out_srt || args.output.out_vtt ||
+            args.output.out_lrc || args.output.out_csv) {
             cues = asr::split_cues(r);
         }
 
@@ -105,6 +106,16 @@ int main(int argc, char ** argv) {
             std::ofstream f(base + ".vtt");
             if (f) { asr::write_vtt(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.vtt (%zu cues)\n", base.c_str(), cues.size()); }
             else { std::fprintf(stderr, "error: cannot write %s.vtt\n", base.c_str()); ret = 1; }
+        }
+        if (args.output.out_lrc) {
+            std::ofstream f(base + ".lrc");
+            if (f) { asr::write_lrc(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.lrc (%zu cues)\n", base.c_str(), cues.size()); }
+            else { std::fprintf(stderr, "error: cannot write %s.lrc\n", base.c_str()); ret = 1; }
+        }
+        if (args.output.out_csv) {
+            std::ofstream f(base + ".csv");
+            if (f) { asr::write_csv(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.csv (%zu cues)\n", base.c_str(), cues.size()); }
+            else { std::fprintf(stderr, "error: cannot write %s.csv\n", base.c_str()); ret = 1; }
         }
     }
     return ret;

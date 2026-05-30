@@ -231,4 +231,26 @@ std::vector<subtitle_cue> split_cues(const result & r, const cue_params & p) {
     return cues;
 }
 
+void write_lrc(std::ostream & os, const std::vector<subtitle_cue> & cues) {
+    for (const auto & c : cues) {
+        const int64_t total_cs = c.start_ms / 10; // centiseconds
+        const int64_t mm = total_cs / 6000;
+        const int64_t ss = (total_cs % 6000) / 100;
+        const int64_t xx = total_cs % 100;
+        char buf[16];
+        std::snprintf(buf, sizeof(buf), "[%02lld:%02lld.%02lld]",
+                      (long long) mm, (long long) ss, (long long) xx);
+        os << buf << c.text << "\n";
+    }
+}
+
+void write_csv(std::ostream & os, const std::vector<subtitle_cue> & cues) {
+    os << "start,end,text\n";
+    for (const auto & c : cues) {
+        os << (double) c.start_ms / 1000.0 << ","
+           << (double) c.end_ms / 1000.0 << ","
+           << "\"" << json_escape(c.text) << "\"\n";
+    }
+}
+
 } // namespace asr
