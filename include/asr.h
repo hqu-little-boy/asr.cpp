@@ -55,6 +55,7 @@ struct transcribe_params {
     std::string context;                // --context: hotwords / domain bias
     int         n_predict      = -1;    // per-chunk token cap; -1 => derive
     float       chunk_length_s = 0.0f;  // 0 => use tuned default
+    bool        carry_context  = false; // feed prior transcript tail as context (experimental)
 };
 
 // Output selection (CLI-level).

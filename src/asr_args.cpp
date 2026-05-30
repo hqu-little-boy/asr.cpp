@@ -74,6 +74,8 @@ cli_args parse_args(int argc, const char * const * argv) {
             if (const char * v = need(i, arg)) a.transcribe.context = v;
         } else if (arg == "--profile") {
             if (const char * v = need(i, arg)) a.model.profile_override = v;
+        } else if (arg == "--carry-context") {
+            a.transcribe.carry_context = true;
         } else if (arg == "-t" || arg == "--threads") {
             if (const char * v = need(i, arg)) {
                 if (!to_int(v, a.model.n_threads)) {
@@ -143,6 +145,7 @@ std::string usage_string(const char * argv0) {
     s += "        --context TEXT      context / hotwords bias\n";
     s += "        --chunk-length N    chunk length in seconds\n";
     s += "        --profile NAME      override model profile\n";
+    s += "        --carry-context     feed prior transcript as context (experimental)\n";
     s += "  -n,   --n-predict N       max tokens generated per chunk\n";
     s += "  -h,   --help              show this help message\n";
     return s;
