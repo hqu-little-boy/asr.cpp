@@ -38,7 +38,7 @@ int main(int argc, char ** argv) {
     // Register SIGINT handler for graceful stop.
     std::signal(SIGINT, sigint_handler);
 
-    auto ctx = asr::asr_context::load(args.model, args.output.no_prints);
+    auto ctx = asr::asr_context::load(args.model, args.output.no_prints, args.transcribe);
     if (!ctx) {
         std::fprintf(stderr, "error: failed to load model / mmproj\n");
         return 1;

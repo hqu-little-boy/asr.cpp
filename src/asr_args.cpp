@@ -98,6 +98,18 @@ cli_args parse_args(int argc, const char * const * argv) {
             if (const char * v = need(i, arg)) a.model.profile_override = v;
         } else if (arg == "--carry-context") {
             a.transcribe.carry_context = true;
+        } else if (arg == "--temperature") {
+            if (const char * v = need(i, arg)) {
+                if (!to_float(v, a.transcribe.temperature)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
+            }
+        } else if (arg == "--top-p") {
+            if (const char * v = need(i, arg)) {
+                if (!to_float(v, a.transcribe.top_p)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
+            }
+        } else if (arg == "--repeat-penalty") {
+            if (const char * v = need(i, arg)) {
+                if (!to_float(v, a.transcribe.repeat_penalty)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
+            }
         } else if (arg == "-t" || arg == "--threads") {
             if (const char * v = need(i, arg)) {
                 if (!to_int(v, a.model.n_threads)) {
@@ -175,6 +187,9 @@ std::string usage_string(const char * argv0) {
     s += "        --profile NAME      override model profile\n";
     s += "        --carry-context     feed prior transcript as context (experimental)\n";
     s += "  -n,   --n-predict N       max tokens generated per chunk\n";
+    s += "        --temperature N     sampling temperature (default: model)\n";
+    s += "        --top-p N           top-p sampling (default: model)\n";
+    s += "        --repeat-penalty N  repeat penalty (default: model)\n";
     s += "        --vad               use FireRedVAD for speech segmentation\n";
     s += "        --vad-model FNAME   FireRedVAD GGUF model (required with --vad)\n";
     s += "        --vad-threshold N   VAD speech probability threshold (default 0.5)\n";

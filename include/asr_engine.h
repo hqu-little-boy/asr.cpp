@@ -16,7 +16,11 @@ class asr_context {
   public:
     // Load model + mmproj and select the profile. Returns nullptr on failure.
     // When quiet is true, ggml/llama/mtmd logging is muted to error-only.
-    static std::unique_ptr<asr_context> load(const model_params & mp, bool quiet = false);
+    // Sampling params from tp (temperature, top_p, repeat_penalty) are applied
+    // to the sampler; values < 0 use the model defaults.
+    static std::unique_ptr<asr_context> load(const model_params & mp,
+                                             bool quiet = false,
+                                             const transcribe_params & tp = transcribe_params{});
     ~asr_context();
 
     asr_context(const asr_context &)             = delete;

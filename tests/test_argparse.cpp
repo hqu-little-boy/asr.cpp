@@ -173,3 +173,20 @@ TEST(Args, LanguageFlagLong) {
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_EQ(a.transcribe.language, "English");
 }
+
+TEST(Args, SamplingParams) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
+                    "--temperature", "0.5", "--top-p", "0.9", "--repeat-penalty", "1.2"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_FLOAT_EQ(a.transcribe.temperature, 0.5f);
+    EXPECT_FLOAT_EQ(a.transcribe.top_p, 0.9f);
+    EXPECT_FLOAT_EQ(a.transcribe.repeat_penalty, 1.2f);
+}
+
+TEST(Args, SamplingParamsDefault) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_LT(a.transcribe.temperature, 0.0f); // < 0 = use default
+    EXPECT_LT(a.transcribe.top_p, 0.0f);
+    EXPECT_LT(a.transcribe.repeat_penalty, 0.0f);
+}

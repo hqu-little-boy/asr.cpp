@@ -57,6 +57,9 @@ struct transcribe_params {
     int         n_predict      = -1;    // per-chunk token cap; -1 => derive
     float       chunk_length_s = 0.0f;  // 0 => use tuned default
     bool        carry_context  = false; // feed prior transcript tail as context (experimental)
+    float       temperature    = -1.0f; // sampling temperature; <0 = use default
+    float       top_p          = -1.0f; // top-p sampling; <0 = use default
+    float       repeat_penalty = -1.0f; // repeat penalty; <0 = use default
 };
 
 // Output selection (CLI-level).

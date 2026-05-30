@@ -50,3 +50,34 @@ TEST(E2E, TranscribeShortClip) {
     EXPECT_FALSE(ct.text.empty());
     EXPECT_EQ(ct.language, "Chinese");
 }
+
+// Verify Qwen3-ASR-1.7B works with the same qwen3a profile (different model,
+// same projector type). Gated behind ASR_RUN_MODEL_TESTS_17B.
+TEST(E2E, Transcribe17BModel) {
+    if (!std::getenv("ASR_RUN_MODEL_TESTS_17B")) {
+        GTEST_SKIP() << "set ASR_RUN_MODEL_TESTS_17B=1 to run 1.7B model tests";
+    }
+
+    asr::model_params mp;
+    mp.model  = env_or("ASR_TEST_MODEL_17B",  std::string(ASR_SOURCE_DIR) + "/models/Qwen3-ASR-1.7B-Q8_0.gguf");
+    mp.mmproj = env_or("ASR_TEST_MMPROJ_17B", std::string(ASR_SOURCE_DIR) + "/models/mmproj-Qwen3-ASR-1.7B-bf16.gguf");
+
+    auto ctx = asr::asr_context::load(mp);
+    ASSERT_NE(ctx, nullptr);
+    EXPECT_EQ(ctx->profile_name(), "qwen3a");
+
+    const std::string audio =
+        env_or("ASR_TEST_AUDIO",
+               std::string(ASR_SOURCE_DIR) + "/test-data/[P1]她赢得了世界，却输掉了自己【桂冠之下】.wav");
+
+    std::vector<float> pcm;
+    ASSERT_TRUE(ctx->load_audio(audio, pcm)) << "could not load audio: " << audio;
+
+    const int    sr  = ctx->sample_rate();
+    const size_t cap = (size_t) sr * 15; // 15s clip (1.7B is slower)
+    if (pcm.size() > cap) pcm.resize(cap);
+
+    const asr::chunk_text ct = ctx->transcribe_chunk(pcm, asr::transcribe_params{});
+    EXPECT_FALSE(ct.text.empty());
+    EXPECT_EQ(ct.language, "Chinese");
+}

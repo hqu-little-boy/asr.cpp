@@ -46,7 +46,8 @@ struct asr_context::impl {
 asr_context::asr_context() : p_(new impl()) {}
 asr_context::~asr_context() = default;
 
-std::unique_ptr<asr_context> asr_context::load(const model_params & mp, bool quiet) {
+std::unique_ptr<asr_context> asr_context::load(const model_params & mp, bool quiet,
+                                               const transcribe_params & tp) {
     static bool backends_loaded = false;
     if (!backends_loaded) {
         common_init();
@@ -66,6 +67,11 @@ std::unique_ptr<asr_context> asr_context::load(const model_params & mp, bool qui
     if (mp.n_threads > 0) {
         params.cpuparams.n_threads = mp.n_threads;
     }
+
+    // Apply user-specified sampling params (< 0 = use default).
+    if (tp.temperature >= 0)    params.sampling.temp           = tp.temperature;
+    if (tp.top_p >= 0)          params.sampling.top_p          = tp.top_p;
+    if (tp.repeat_penalty >= 0) params.sampling.penalty_repeat = tp.repeat_penalty;
 
     std::unique_ptr<asr_context> self(new asr_context());
     impl & s = *self->p_;
