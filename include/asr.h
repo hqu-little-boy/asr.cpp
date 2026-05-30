@@ -1,0 +1,67 @@
+#pragma once
+
+// asr.cpp public types and library entry points.
+//
+// Layering note:
+//   - This header and the `asr_core` library are PURE: no llama.cpp / mtmd
+//     dependency, so the bulk of the logic (parsing, chunking, formatting,
+//     argument parsing, profile registry, merging) is unit-testable without a
+//     model.
+//   - The mtmd-backed engine lives in the separate `asr_engine` library and is
+//     only built when ASR_BUILD_ENGINE is enabled.
+
+#include <cstdint>
+#include <string>
+#include <vector>
+
+namespace asr {
+
+// Library version string.
+const char * version();
+
+// A contiguous span of transcribed text with (coarse) timing in milliseconds.
+// In v1 timestamps are chunk-level only and not surfaced in the output.
+struct segment {
+    int64_t     t0_ms = 0;
+    int64_t     t1_ms = 0;
+    std::string text;
+};
+
+// Full transcription result, engine-agnostic. Consumed by the output layer.
+struct result {
+    std::vector<segment> segments;
+    std::string          language; // detected language (may be empty)
+};
+
+// Parsed output of a single chunk's generation.
+struct chunk_text {
+    std::string text;
+    std::string language;
+};
+
+// Parameters needed to load a model.
+struct model_params {
+    std::string model;                  // main GGUF model path (required)
+    std::string mmproj;                 // multimodal projector GGUF path (required)
+    bool        use_gpu        = true;
+    bool        mmproj_use_gpu = true;
+    int         n_threads      = 4;
+    std::string profile_override;       // --profile; empty => auto-detect
+};
+
+// Parameters for a transcription run.
+struct transcribe_params {
+    std::string context;                // --context: hotwords / domain bias
+    int         n_predict      = -1;    // per-chunk token cap; -1 => derive
+    float       chunk_length_s = 0.0f;  // 0 => use tuned default
+};
+
+// Output selection (CLI-level).
+struct output_params {
+    std::string out_base;               // -of: output file base path
+    bool        out_txt   = false;      // -otxt
+    bool        out_json  = false;      // -oj
+    bool        no_prints = false;      // -np
+};
+
+} // namespace asr

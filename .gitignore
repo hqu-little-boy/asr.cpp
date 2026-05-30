@@ -1,0 +1,25 @@
+# build output
+/build/
+/build-*/
+/cmake-build-*/
+
+# vendored dependencies (each is its own repository / large)
+/llama.cpp/
+/whisper.cpp/
+
+# large local assets
+/models/
+/test-data/
+
+# tooling
+compile_commands.json
+.cache/
+
+# local Claude Code config
+/.claude/settings.local.json
+
+# object / archive artifacts
+*.o
+*.a
+*.so
+*.obj
