@@ -82,6 +82,7 @@ if(ASR_BUILD_TESTS)
         test_argparse
         test_profile_registry
         test_merge
+        test_carry
     )
     foreach(t ${ASR_CORE_TESTS})
         add_executable(${t} tests/${t}.cpp)

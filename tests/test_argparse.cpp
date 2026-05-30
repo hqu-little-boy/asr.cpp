@@ -128,3 +128,9 @@ TEST(Args, DashIsStdinInput) {
     ASSERT_EQ(a.input_files.size(), 1u);
     EXPECT_EQ(a.input_files[0], "-");
 }
+
+TEST(Args, CarryContextFlag) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "--carry-context"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_TRUE(a.transcribe.carry_context);
+}
