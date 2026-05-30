@@ -55,4 +55,40 @@ chunk_text parse_qwen3a_output(const std::string & raw) {
     return out;
 }
 
+namespace {
+
+// All current profiles build the same user message (marker + context); they
+// differ only in how they parse the model's raw output.
+std::string build_marker_plus_context(const transcribe_params & params,
+                                       const std::string &       media_marker) {
+    return media_marker + params.context;
+}
+
+const profile & generic_profile() {
+    static const profile p{
+        "generic",
+        build_marker_plus_context,
+        [](const std::string & raw) { return chunk_text{trim(raw), std::string()}; },
+    };
+    return p;
+}
+
+const profile & qwen3a_profile() {
+    static const profile p{
+        "qwen3a",
+        build_marker_plus_context,
+        [](const std::string & raw) { return parse_qwen3a_output(raw); },
+    };
+    return p;
+}
+
+} // namespace
+
+const profile & select_profile(const std::string & projector_type) {
+    if (projector_type == "qwen3a") {
+        return qwen3a_profile();
+    }
+    return generic_profile();
+}
+
 } // namespace asr
