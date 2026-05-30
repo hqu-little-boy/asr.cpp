@@ -59,6 +59,7 @@ if(ASR_BUILD_TESTS)
         test_parse_qwen3a
         test_chunker
         test_output_format
+        test_argparse
     )
     foreach(t ${ASR_CORE_TESTS})
         add_executable(${t} tests/${t}.cpp)
