@@ -15,7 +15,8 @@ namespace asr {
 class asr_context {
   public:
     // Load model + mmproj and select the profile. Returns nullptr on failure.
-    static std::unique_ptr<asr_context> load(const model_params & mp);
+    // When quiet is true, ggml/llama/mtmd logging is muted to error-only.
+    static std::unique_ptr<asr_context> load(const model_params & mp, bool quiet = false);
     ~asr_context();
 
     asr_context(const asr_context &)             = delete;
@@ -36,5 +37,9 @@ class asr_context {
     struct impl;
     std::unique_ptr<impl> p_;
 };
+
+// Route ggml / llama / mtmd logging to error-only (used for --no-prints to mute
+// the verbose per-chunk encode/decode messages).
+void set_log_quiet();
 
 } // namespace asr

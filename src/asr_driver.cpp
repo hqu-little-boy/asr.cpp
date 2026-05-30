@@ -32,16 +32,17 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
     for (const auto & w : windows) {
         std::vector<float> sub(pcm.begin() + w.offset, pcm.begin() + w.offset + w.length);
         chunk_text ct = ctx.transcribe_chunk(sub, tp);
-        if (!quiet && !ct.text.empty()) {
+        // The transcription is the primary result: always stream it to stdout
+        // (so -np silences logs but still emits the text). Files are written by
+        // the caller from the merged result.
+        if (!ct.text.empty()) {
             std::printf("%s", ct.text.c_str());
             std::fflush(stdout);
         }
         results.push_back({w, std::move(ct)});
     }
-    if (!quiet) {
-        std::printf("\n");
-        std::fflush(stdout);
-    }
+    std::printf("\n");
+    std::fflush(stdout);
 
     out = merge_chunks(results, sr);
     return true;

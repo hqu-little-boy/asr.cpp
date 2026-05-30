@@ -25,7 +25,7 @@ int main(int argc, char ** argv) {
     }
 
 #ifdef ASR_WITH_ENGINE
-    auto ctx = asr::asr_context::load(args.model);
+    auto ctx = asr::asr_context::load(args.model, args.output.no_prints);
     if (!ctx) {
         std::fprintf(stderr, "error: failed to load model / mmproj\n");
         return 1;

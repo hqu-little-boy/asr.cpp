@@ -6,6 +6,7 @@
 #include "common.h"
 #include "sampling.h"
 #include "chat.h"
+#include "ggml.h"
 #include "llama.h"
 #include "mtmd.h"
 #include "mtmd-helper.h"
@@ -45,12 +46,16 @@ struct asr_context::impl {
 asr_context::asr_context() : p_(new impl()) {}
 asr_context::~asr_context() = default;
 
-std::unique_ptr<asr_context> asr_context::load(const model_params & mp) {
+std::unique_ptr<asr_context> asr_context::load(const model_params & mp, bool quiet) {
     static bool backends_loaded = false;
     if (!backends_loaded) {
         common_init();
         ggml_backend_load_all();
         backends_loaded = true;
+    }
+    // Mute logging before the model is loaded so --no-prints is actually quiet.
+    if (quiet) {
+        set_log_quiet();
     }
 
     common_params params;
@@ -112,8 +117,10 @@ std::unique_ptr<asr_context> asr_context::load(const model_params & mp) {
     const std::string want      = mp.profile_override.empty() ? projector : mp.profile_override;
     s.prof         = &select_profile(want);
     s.profile_name = s.prof->name;
-    std::fprintf(stderr, "asr: projector_type='%s', profile='%s', sample_rate=%d\n",
-                 projector.c_str(), s.profile_name.c_str(), s.sample_rate);
+    if (!quiet) {
+        std::fprintf(stderr, "asr: projector_type='%s', profile='%s', sample_rate=%d\n",
+                     projector.c_str(), s.profile_name.c_str(), s.sample_rate);
+    }
 
     return self;
 }
@@ -196,6 +203,20 @@ chunk_text asr_context::transcribe_chunk(const std::vector<float> & pcm, const t
     }
 
     return s.prof->parse_output(raw);
+}
+
+namespace {
+void quiet_log_cb(enum ggml_log_level level, const char * text, void * /*user_data*/) {
+    if (level == GGML_LOG_LEVEL_ERROR) {
+        std::fputs(text, stderr);
+    }
+}
+} // namespace
+
+void set_log_quiet() {
+    ggml_log_set(quiet_log_cb, nullptr);
+    llama_log_set(quiet_log_cb, nullptr);
+    mtmd_helper_log_set(quiet_log_cb, nullptr); // also routes mtmd_log_set
 }
 
 } // namespace asr

@@ -1,46 +1,88 @@
 # asr.cpp
 
-A standalone speech-recognition CLI built on top of **llama.cpp / mtmd**, with a
-whisper-cli-like user experience. The first target model is **Qwen3-ASR**; the
-design keeps a per-model *profile* registry so future mtmd audio models can be
-added without touching the core.
+A standalone, `whisper-cli`-style speech-recognition tool built on **llama.cpp /
+mtmd**. The first target model is **Qwen3-ASR**; a per-model *profile* registry
+keeps the core model-agnostic so future mtmd audio models can be added without
+touching it.
 
 ## Status
 
-Under active development. v1 scope: single mtmd engine, plain-text output
-(`stdout` / `-otxt` / `-oj`), long-audio handling via a chunking driver. No
-timestamps / subtitles yet (planned).
+Working end to end for plain-text transcription. v1 scope: a single mtmd engine,
+text output (`stdout` / `-otxt` / `-oj`), long-audio handling via a chunking
+driver. Timestamps / subtitles (srt/vtt) are planned, not yet implemented.
 
-## Design constraints
+## Design
 
-- **Public APIs only.** mtmd is treated as a sealed dependency: we include
+- **Public APIs only.** mtmd is a sealed dependency: the code includes
   `mtmd.h`, `mtmd-helper.h`, `llama.h`, `ggml.h`, `gguf.h` and `common/*` — never
   `clip*.h`, `mtmd-audio.h` or `models/*`.
-- The library is split into `asr_core` (pure logic, no llama/mtmd, fully
-  unit-testable) and `asr_engine` (mtmd-backed, built when `ASR_BUILD_ENGINE=ON`).
+- **Library split** — `asr_core` (pure logic: parsing, chunking, output,
+  argument parsing, profile registry, merging; no llama/mtmd, fully unit-tested)
+  and `asr_engine` (mtmd-backed; built when `ASR_BUILD_ENGINE=ON`). `asr-cli` is
+  a thin shell.
+- **Pipeline** — load audio → 16 kHz mono PCM → chunk (fixed window nudged to a
+  silence dip; default 30 s) → transcribe each chunk in an *independent* context
+  → merge → output.
+- **Profiles** are the single extension point. A profile is selected from the
+  mmproj's `clip.(audio.)projector_type` (e.g. `qwen3a`); unknown types fall back
+  to a generic pass-through. Each profile defines how the prompt is built and how
+  the model's raw generation is parsed. Qwen3-ASR emits
+  `language <Lang><asr_text><transcription>`, which the `qwen3a` profile parses
+  into `{language, text}`.
 
 ## Dependencies
 
-- `llama.cpp/` must be present in the project root (vendored; built from source).
+- `llama.cpp/` present in the project root (vendored; built from source).
 - GoogleTest (system-installed) for unit tests.
 
 ## Build
 
 ```sh
-# Core + tests only (fast; no llama.cpp compile):
+# Core + pure-logic tests only (fast; does not compile llama.cpp):
 cmake -S . -B build -DASR_BUILD_ENGINE=OFF
-cmake --build build
+cmake --build build -j
 ctest --test-dir build
 
 # Full build with the mtmd engine + CLI:
 cmake -S . -B build -DASR_BUILD_ENGINE=ON
-cmake --build build
+cmake --build build -j
 ```
 
-## Usage (planned)
+## Usage
 
 ```sh
-asr-cli -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
-        --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
-        audio.wav -otxt -oj
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    audio.wav -otxt -oj
+```
+
+Common options:
+
+| Option | Meaning |
+| --- | --- |
+| `-m, --model FNAME` | main GGUF model (required) |
+| `--mmproj FNAME` | multimodal projector GGUF (required) |
+| `-f, --file FNAME` | input audio (wav/mp3/flac); also positional |
+| `-of, --output-file BASE` | output base path (writes `BASE.txt` / `BASE.json`) |
+| `-otxt` / `-oj` | write `.txt` / `.json` |
+| `--chunk-length N` | chunk length in seconds (default 30) |
+| `--context TEXT` | hotword / domain bias passed to the model |
+| `--profile NAME` | override the auto-detected profile |
+| `-t, --threads N` | CPU threads |
+| `-ng, --no-gpu` | disable GPU offload |
+| `-np, --no-prints` | mute logs (transcription still prints to stdout) |
+| `-n, --n-predict N` | max tokens generated per chunk |
+
+The transcription always streams to `stdout`; `-otxt` / `-oj` additionally write
+files. `-oj` produces minimal JSON: `{"language": "...", "text": "..."}`.
+
+## Testing
+
+`ctest` runs the pure-logic suite by default. Model-dependent tests
+(`Gguf.ReadsQwen3aProjectorType`, `E2E.TranscribeShortClip`) are skipped unless
+`ASR_RUN_MODEL_TESTS=1` is set and the models are present:
+
+```sh
+ASR_RUN_MODEL_TESTS=1 ctest --test-dir build
 ```
