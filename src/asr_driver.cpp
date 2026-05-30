@@ -47,7 +47,8 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
     std::vector<chunk_result> results;
     results.reserve(windows.size());
     std::string carry; // accumulated transcript, used only in carry-over mode
-    for (const auto & w : windows) {
+    for (size_t wi = 0; wi < windows.size(); ++wi) {
+        const auto & w = windows[wi];
         std::vector<float> sub(pcm.begin() + w.offset, pcm.begin() + w.offset + w.length);
 
         transcribe_params tp_chunk = tp;
@@ -55,13 +56,22 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
             tp_chunk.context = carry_context(carry, tp.context);
         }
 
+        if (!quiet) {
+            std::fprintf(stderr, "\rasr: [%zu/%zu] segment %.1f-%.1f s",
+                         wi + 1, windows.size(),
+                         (double) w.offset / sr,
+                         (double) (w.offset + w.length) / sr);
+            std::fflush(stderr);
+        }
+
         chunk_text ct = ctx.transcribe_chunk(sub, tp_chunk);
         if (!ct.text.empty()) {
             std::printf("%s", ct.text.c_str());
             std::fflush(stdout);
         } else if (!quiet) {
-            std::fprintf(stderr, "asr: warning: empty transcription for segment "
-                         "%.1f-%.1fs\n", (double) w.offset / sr,
+            std::fprintf(stderr, "\rasr: [%zu/%zu] segment %.1f-%.1f s (empty)",
+                         wi + 1, windows.size(),
+                         (double) w.offset / sr,
                          (double) (w.offset + w.length) / sr);
         }
         if (tp.carry_context && !ct.text.empty()) {

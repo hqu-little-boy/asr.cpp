@@ -1,7 +1,9 @@
 #include "asr_args.h"
 #include "asr.h"
 
+#include <fstream>
 #include <string>
+#include <vector>
 
 namespace asr {
 
@@ -35,21 +37,60 @@ bool to_float(const std::string & s, float & out) {
 
 } // namespace
 
+namespace {
+// Expand @file tokens: each line in the file becomes a separate argument.
+std::vector<std::string> expand_response_files(int argc, const char * const * argv) {
+    std::vector<std::string> expanded;
+    expanded.reserve(argc);
+    for (int i = 0; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg.size() > 1 && arg[0] == '@') {
+            const std::string path = arg.substr(1);
+            std::ifstream f(path);
+            if (!f) {
+                // Keep the @token as-is; parse_args will report an error later
+                // if it looks like an unknown flag.
+                expanded.push_back(arg);
+                continue;
+            }
+            std::string line;
+            while (std::getline(f, line)) {
+                // Strip trailing \r (Windows line endings).
+                if (!line.empty() && line.back() == '\r') line.pop_back();
+                // Skip empty lines and comments (#).
+                if (line.empty() || line[0] == '#') continue;
+                expanded.push_back(line);
+            }
+        } else {
+            expanded.push_back(arg);
+        }
+    }
+    return expanded;
+}
+} // namespace
+
 cli_args parse_args(int argc, const char * const * argv) {
     cli_args a;
 
+    // Expand @responsefiles first.
+    const std::vector<std::string> expanded = expand_response_files(argc, argv);
+    const int exp_argc = (int) expanded.size();
+    // Build a c-string array for the rest of the parser.
+    std::vector<const char *> exp_argv(exp_argc);
+    for (int i = 0; i < exp_argc; ++i) exp_argv[i] = expanded[i].c_str();
+
     // Fetch the value following a value-taking flag, or flag an error.
     auto need = [&](int & i, const std::string & flag) -> const char * {
-        if (i + 1 >= argc) {
+        if (i + 1 >= exp_argc) {
             a.error = true;
             a.error_msg = "missing value for " + flag;
             return nullptr;
         }
-        return argv[++i];
+        return exp_argv[++i];
     };
 
-    for (int i = 1; i < argc && !a.error; ++i) {
-        const std::string arg = argv[i];
+    for (int i = 1; i < exp_argc && !a.error; ++i) {
+        const std::string arg = exp_argv[i];
 
         if (arg == "-h" || arg == "--help") {
             a.help = true;
@@ -214,6 +255,7 @@ std::string usage_string(const char * argv0) {
     s += "        --vad-min-speech N  minimum speech duration in seconds (default 0.25)\n";
     s += "        --vad-min-silence N minimum silence duration in seconds (default 0.10)\n";
     s += "  -h,   --help              show this help message\n";
+    s += "        @file               read arguments from file (one per line, # comments)\n";
     return s;
 }
 

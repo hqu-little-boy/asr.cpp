@@ -2,6 +2,8 @@
 
 #include <gtest/gtest.h>
 
+#include <cstdio>
+#include <fstream>
 #include <string>
 #include <vector>
 
@@ -211,4 +213,27 @@ TEST(Args, OutputFormatUnknown) {
                     "--output-format", "xyz"});
     EXPECT_TRUE(a.error);
     EXPECT_NE(a.error_msg.find("unknown format"), std::string::npos);
+}
+
+TEST(Args, ResponseFile) {
+    // Write a temp response file with args.
+    const char * path = "/tmp/asr_test_args.txt";
+    {
+        std::ofstream f(path);
+        f << "-m\na.gguf\n# comment\n--mmproj\np.gguf\n\nx.wav\n";
+    }
+    const std::string at_arg = std::string("@") + path;
+    auto a = parse({"asr-cli", at_arg.c_str()});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_EQ(a.model.model, "a.gguf");
+    EXPECT_EQ(a.model.mmproj, "p.gguf");
+    ASSERT_EQ(a.input_files.size(), 1u);
+    EXPECT_EQ(a.input_files[0], "x.wav");
+    std::remove(path);
+}
+
+TEST(Args, ResponseFileMissing) {
+    // @file that doesn't exist → treated as unknown arg → error.
+    auto a = parse({"asr-cli", "@/no/such/file.txt"});
+    EXPECT_TRUE(a.error);
 }

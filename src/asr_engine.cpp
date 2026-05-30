@@ -4,6 +4,7 @@
 #include "asr_audio.h"
 
 #include "common.h"
+#include "log.h"
 #include "sampling.h"
 #include "chat.h"
 #include "ggml.h"
@@ -242,6 +243,7 @@ void set_log_quiet() {
     ggml_log_set(quiet_log_cb, nullptr);
     llama_log_set(quiet_log_cb, nullptr);
     mtmd_helper_log_set(quiet_log_cb, nullptr); // also routes mtmd_log_set
+    common_log_set_verbosity_thold(1); // LOG_LEVEL_ERROR only (suppress INFO/WARN)
 }
 
 } // namespace asr
