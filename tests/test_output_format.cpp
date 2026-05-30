@@ -83,3 +83,44 @@ TEST(Output, JsonEscapeUnitUtf8Verbatim) {
     // CJK bytes must be passed through, not \u-escaped.
     EXPECT_EQ(json_escape("你好世界"), "你好世界");
 }
+
+TEST(Output, JsonFullBasic) {
+    result r;
+    r.language = "Chinese";
+    r.text     = "你好世界。再见。";
+    r.segments = {{0, 2000, "你好世界。"}, {2000, 4000, "再见。"}};
+    std::ostringstream os;
+    write_json_full(os, r);
+    const std::string expected =
+        "{\n"
+        "  \"language\": \"Chinese\",\n"
+        "  \"text\": \"你好世界。再见。\",\n"
+        "  \"segments\": [\n"
+        "    {\"start\": 0, \"end\": 2, \"text\": \"你好世界。\"},\n"
+        "    {\"start\": 2, \"end\": 4, \"text\": \"再见。\"}\n"
+        "  ]\n"
+        "}\n";
+    EXPECT_EQ(os.str(), expected);
+}
+
+TEST(Output, JsonFullSubsecond) {
+    result r;
+    r.language = "English";
+    r.text     = "hi";
+    r.segments = {{149, 1529, "hi"}};
+    std::ostringstream os;
+    write_json_full(os, r);
+    EXPECT_NE(os.str().find("\"start\": 0.149"), std::string::npos);
+    EXPECT_NE(os.str().find("\"end\": 1.529"), std::string::npos);
+}
+
+TEST(Output, JsonFullEmptySegments) {
+    result r;
+    r.language = "";
+    r.text     = "";
+    std::ostringstream os;
+    write_json_full(os, r);
+    // Empty segments array still has newline-separated brackets.
+    EXPECT_NE(os.str().find("\"segments\": ["), std::string::npos);
+    EXPECT_NE(os.str().find("]"), std::string::npos);
+}

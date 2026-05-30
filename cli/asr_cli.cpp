@@ -1,15 +1,24 @@
 #include "asr_args.h"
 
 #include <cstdio>
+#include <csignal>
 
 #ifdef ASR_WITH_ENGINE
 #include "asr_engine.h"
 #include "asr_driver.h"
 #include "asr_output.h"
+#include "asr_postprocess.h"
 #include "asr_vad.h"
 
+#include <atomic>
 #include <fstream>
 #include <string>
+
+static std::atomic<bool> g_interrupted{false};
+
+static void sigint_handler(int) {
+    g_interrupted.store(true);
+}
 #endif
 
 int main(int argc, char ** argv) {
@@ -26,6 +35,9 @@ int main(int argc, char ** argv) {
     }
 
 #ifdef ASR_WITH_ENGINE
+    // Register SIGINT handler for graceful stop.
+    std::signal(SIGINT, sigint_handler);
+
     auto ctx = asr::asr_context::load(args.model, args.output.no_prints);
     if (!ctx) {
         std::fprintf(stderr, "error: failed to load model / mmproj\n");
@@ -49,6 +61,11 @@ int main(int argc, char ** argv) {
 
     int ret = 0;
     for (const auto & file : args.input_files) {
+        if (g_interrupted.load()) {
+            std::fprintf(stderr, "\nasr: interrupted\n");
+            break;
+        }
+
         asr::result r;
         if (!asr::transcribe_file(*ctx, file, args.transcribe, args.output.no_prints,
                                   r, vad.get(), vp)) {
@@ -56,9 +73,14 @@ int main(int argc, char ** argv) {
             continue;
         }
 
+        // Suppress repetitions in the merged text.
+        r.text = asr::suppress_repeats(r.text);
+        for (auto & seg : r.segments) {
+            seg.text = asr::suppress_repeats(seg.text);
+        }
+
         const std::string base = args.output.out_base.empty() ? file : args.output.out_base;
 
-        // Determine subtitle cues once (shared by srt/vtt).
         std::vector<asr::subtitle_cue> cues;
         if (args.output.out_srt || args.output.out_vtt) {
             cues = asr::split_cues(r);
@@ -71,7 +93,7 @@ int main(int argc, char ** argv) {
         }
         if (args.output.out_json) {
             std::ofstream f(base + ".json");
-            if (f) { asr::write_json(f, r); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.json\n", base.c_str()); }
+            if (f) { asr::write_json_full(f, r); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.json\n", base.c_str()); }
             else { std::fprintf(stderr, "error: cannot write %s.json\n", base.c_str()); ret = 1; }
         }
         if (args.output.out_srt) {

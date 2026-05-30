@@ -40,6 +40,23 @@ void write_json(std::ostream & os, const result & r) {
     os << "}\n";
 }
 
+void write_json_full(std::ostream & os, const result & r) {
+    os << "{\n";
+    os << "  \"language\": \"" << json_escape(r.language) << "\",\n";
+    os << "  \"text\": \""     << json_escape(r.text)     << "\",\n";
+    os << "  \"segments\": [\n";
+    for (size_t i = 0; i < r.segments.size(); ++i) {
+        const auto & seg = r.segments[i];
+        os << "    {\"start\": " << (double) seg.t0_ms / 1000.0
+           << ", \"end\": "      << (double) seg.t1_ms / 1000.0
+           << ", \"text\": \""   << json_escape(seg.text) << "\"}";
+        if (i + 1 < r.segments.size()) os << ",";
+        os << "\n";
+    }
+    os << "  ]\n";
+    os << "}\n";
+}
+
 // ---- Subtitles ----
 
 static std::string ts_to_string(int64_t ms, char sep) {

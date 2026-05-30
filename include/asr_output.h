@@ -21,6 +21,11 @@ void write_txt(std::ostream & os, const result & r);
 // Write the transcription as minimal JSON: {"language": "...", "text": "..."}.
 void write_json(std::ostream & os, const result & r);
 
+// Write the transcription as full JSON with segments:
+// {"language": "...", "text": "...", "segments": [{"start": ..., "end": ..., "text": "..."}]}
+// Times are in seconds (float), matching whisper's JSON output format.
+void write_json_full(std::ostream & os, const result & r);
+
 // ---- Subtitles (SRT / VTT) ----
 
 struct subtitle_cue {
