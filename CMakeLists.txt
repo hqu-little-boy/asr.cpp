@@ -109,5 +109,11 @@ if(ASR_BUILD_TESTS)
             target_compile_definitions(${t} PRIVATE ASR_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
             gtest_discover_tests(${t})
         endforeach()
+
+        # FireRedVAD tests (pure-logic ones run always; model ones gated).
+        add_executable(test_vad tests/test_vad.cpp)
+        target_link_libraries(test_vad PRIVATE asr_vad GTest::gtest_main)
+        target_compile_definitions(test_vad PRIVATE ASR_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+        gtest_discover_tests(test_vad)
     endif()
 endif()
