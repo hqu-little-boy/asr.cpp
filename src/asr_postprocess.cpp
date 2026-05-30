@@ -113,4 +113,85 @@ std::string suppress_repeats(const std::string & s, int threshold) {
     return fix_pattern_repeats(fix_char_repeats(s, threshold), threshold);
 }
 
+namespace {
+// Count UTF-8 codepoints.
+size_t count_cp(const std::string & s) {
+    size_t n = 0;
+    for (size_t i = 0; i < s.size(); ) {
+        ++n;
+        const unsigned char c = (unsigned char) s[i];
+        i += (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
+    }
+    return n;
+}
+
+// Compute the length (in codepoints) of the longest common prefix of a and b.
+size_t common_prefix_cps(const std::string & a, const std::string & b) {
+    size_t n = 0, ia = 0, ib = 0;
+    while (ia < a.size() && ib < b.size()) {
+        const size_t la = (unsigned char) a[ia] < 0x80 ? 1 :
+                          (unsigned char) a[ia] < 0xE0 ? 2 :
+                          (unsigned char) a[ia] < 0xF0 ? 3 : 4;
+        const size_t lb = (unsigned char) b[ib] < 0x80 ? 1 :
+                          (unsigned char) b[ib] < 0xE0 ? 2 :
+                          (unsigned char) b[ib] < 0xF0 ? 3 : 4;
+        if (la != lb || a.compare(ia, la, b, ib, lb) != 0) break;
+        ++n;
+        ia += la;
+        ib += lb;
+    }
+    return n;
+}
+} // namespace
+
+void dedup_segments(result & r, size_t min_common) {
+    if (r.segments.size() < 2) return;
+
+    std::vector<segment> deduped;
+    deduped.reserve(r.segments.size());
+    deduped.push_back(r.segments[0]);
+
+    for (size_t i = 1; i < r.segments.size(); ++i) {
+        const std::string & prev = deduped.back().text;
+        const std::string & cur  = r.segments[i].text;
+        if (prev.empty() || cur.empty()) {
+            if (!cur.empty()) deduped.push_back(r.segments[i]);
+            continue;
+        }
+        const size_t cp_prev = count_cp(prev);
+        const size_t cp_cur  = count_cp(cur);
+        const size_t cp_com  = common_prefix_cps(prev, cur);
+
+        // If one text is a prefix of the other (≥ min_common codepoints),
+        // keep the longer one and drop the shorter.
+        if (cp_com >= min_common) {
+            if (cp_com >= cp_prev && cp_cur > cp_prev) {
+                // prev is a prefix of cur → drop prev, keep cur.
+                deduped.back() = r.segments[i];
+            } else if (cp_com >= cp_cur && cp_prev > cp_cur) {
+                // cur is a prefix of prev → drop cur (do nothing).
+            } else {
+                // Long common prefix but neither is a full prefix → keep both.
+                deduped.push_back(r.segments[i]);
+            }
+        } else {
+            deduped.push_back(r.segments[i]);
+        }
+    }
+
+    // Rebuild the result.
+    r.segments = std::move(deduped);
+    r.text.clear();
+    for (size_t i = 0; i < r.segments.size(); ++i) {
+        if (i > 0 && !r.text.empty()) {
+            const unsigned char back  = (unsigned char) r.text.back();
+            const unsigned char front = (unsigned char) r.segments[i].text.front();
+            if (back < 0x80 && std::isalnum(back) && front < 0x80 && std::isalnum(front)) {
+                r.text += ' ';
+            }
+        }
+        r.text += r.segments[i].text;
+    }
+}
+
 } // namespace asr

@@ -1,6 +1,7 @@
 #include "asr_merge.h"
 
 #include <cctype>
+#include <string>
 
 namespace asr {
 
@@ -16,6 +17,19 @@ bool is_ascii_word(char c) {
 
 int64_t samples_to_ms(size_t samples, int sample_rate) {
     return (int64_t) samples * 1000 / sample_rate;
+}
+
+// Find the longest suffix of `prev` that is also a prefix of `next`, with
+// length >= min_overlap. Returns the overlap length (0 if none found).
+// Used to detect and remove duplicate text at chunk boundaries.
+size_t find_overlap(const std::string & prev, const std::string & next, size_t min_overlap = 8) {
+    const size_t max_len = std::min(prev.size(), next.size());
+    for (size_t len = max_len; len >= min_overlap; --len) {
+        if (prev.compare(prev.size() - len, len, next, 0, len) == 0) {
+            return len;
+        }
+    }
+    return 0;
 }
 
 } // namespace
@@ -39,13 +53,33 @@ result merge_chunks(const std::vector<chunk_result> & chunks, int sample_rate) {
         seg.t0_ms = samples_to_ms(c.span.offset, sample_rate);
         seg.t1_ms = samples_to_ms(c.span.offset + c.span.length, sample_rate);
         seg.text  = c.parsed.text;
+
+        // Dedup: if the tail of the previous segment's text matches the head
+        // of this segment's text, trim the duplicate from this segment.
+        if (!r.segments.empty()) {
+            const std::string & prev_text = r.segments.back().text;
+            const size_t overlap = find_overlap(prev_text, seg.text);
+            if (overlap > 0) {
+                // Trim the duplicate prefix from this segment.
+                size_t trim = overlap;
+                // Also skip any whitespace after the trimmed portion.
+                while (trim < seg.text.size() && std::isspace((unsigned char) seg.text[trim])) {
+                    ++trim;
+                }
+                seg.text = seg.text.substr(trim);
+                if (seg.text.empty()) {
+                    continue; // entire segment was a duplicate
+                }
+            }
+        }
+
         r.segments.push_back(seg);
 
         if (!r.text.empty() &&
-            is_ascii_word(r.text.back()) && is_ascii_word(c.parsed.text.front())) {
+            is_ascii_word(r.text.back()) && is_ascii_word(seg.text.front())) {
             r.text += ' ';
         }
-        r.text += c.parsed.text;
+        r.text += seg.text;
     }
 
     return r;

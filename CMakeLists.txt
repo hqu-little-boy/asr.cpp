@@ -92,6 +92,7 @@ if(ASR_BUILD_TESTS)
         test_carry
         test_srt_vtt
         test_postprocess
+        test_dedup
     )
     foreach(t ${ASR_CORE_TESTS})
         add_executable(${t} tests/${t}.cpp)

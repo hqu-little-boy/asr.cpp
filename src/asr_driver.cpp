@@ -2,6 +2,7 @@
 #include "asr_chunker.h"
 #include "asr_carry.h"
 #include "asr_merge.h"
+#include "asr_postprocess.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -58,6 +59,10 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
         if (!ct.text.empty()) {
             std::printf("%s", ct.text.c_str());
             std::fflush(stdout);
+        } else if (!quiet) {
+            std::fprintf(stderr, "asr: warning: empty transcription for segment "
+                         "%.1f-%.1fs\n", (double) w.offset / sr,
+                         (double) (w.offset + w.length) / sr);
         }
         if (tp.carry_context && !ct.text.empty()) {
             if (!carry.empty()) carry += ' ';
@@ -69,6 +74,9 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
     std::fflush(stdout);
 
     out = merge_chunks(results, sr);
+    // Remove inter-segment duplicates (common when adjacent VAD segments
+    // share boundary text).
+    dedup_segments(out);
     return true;
 }
 

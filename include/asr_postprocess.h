@@ -1,5 +1,7 @@
 #pragma once
 
+#include "asr.h"
+
 #include <string>
 
 namespace asr {
@@ -16,5 +18,12 @@ std::string fix_pattern_repeats(const std::string & s, int threshold = 20);
 
 // Apply both fix_char_repeats and fix_pattern_repeats.
 std::string suppress_repeats(const std::string & s, int threshold = 20);
+
+// Remove inter-segment duplicates: if two adjacent segments have text where
+// one is a prefix of the other (or they share a very long common prefix),
+// the duplicate is dropped. Modifies `r.segments` and rebuilds `r.text`.
+// `min_common` is the minimum number of codepoints for a prefix to be
+// considered a duplicate (default 8).
+void dedup_segments(result & r, size_t min_common = 8);
 
 } // namespace asr
