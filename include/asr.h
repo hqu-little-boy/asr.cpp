@@ -29,7 +29,8 @@ struct segment {
 
 // Full transcription result, engine-agnostic. Consumed by the output layer.
 struct result {
-    std::vector<segment> segments;
+    std::string          text;     // full transcription (canonical output)
+    std::vector<segment> segments; // structural pieces; timing for future use
     std::string          language; // detected language (may be empty)
 };
 
