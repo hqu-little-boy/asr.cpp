@@ -63,7 +63,18 @@ struct output_params {
     std::string out_base;               // -of: output file base path
     bool        out_txt   = false;      // -otxt
     bool        out_json  = false;      // -oj
+    bool        out_srt   = false;      // -osrt
+    bool        out_vtt   = false;      // -ovtt
     bool        no_prints = false;      // -np
+};
+
+// VAD-related parameters (FireRedVAD).
+struct vad_run_params {
+    std::string model_path;             // --vad-model FNAME
+    bool        use_vad  = false;       // --vad
+    float       threshold       = 0.5f;
+    float       min_speech_sec  = 0.25f;
+    float       min_silence_sec = 0.10f;
 };
 
 } // namespace asr

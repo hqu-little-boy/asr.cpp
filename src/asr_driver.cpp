@@ -10,22 +10,37 @@
 namespace asr {
 
 bool transcribe_file(asr_context & ctx, const std::string & path,
-                     const transcribe_params & tp, bool quiet, result & out) {
+                     const transcribe_params & tp, bool quiet, result & out,
+                     vad_context * vad, const vad_params & vp) {
     std::vector<float> pcm;
     if (!ctx.load_audio(path, pcm)) {
         std::fprintf(stderr, "error: failed to load audio '%s'\n", path.c_str());
         return false;
     }
 
-    const int   sr        = ctx.sample_rate();
-    const float chunk_len = tp.chunk_length_s > 0.0f ? tp.chunk_length_s : kDefaultChunkLengthS;
+    const int sr = ctx.sample_rate();
 
-    const std::vector<audio_chunk> windows = chunk_audio(pcm.data(), pcm.size(), sr, chunk_len);
+    // Segment the audio: VAD or fixed-window chunker.
+    std::vector<audio_chunk> windows;
+    if (vad != nullptr) {
+        const auto segs = vad->detect(pcm.data(), (int) pcm.size(), vp);
+        for (const auto & s : segs) {
+            audio_chunk w;
+            w.offset = (size_t) (s.start_sec * sr);
+            w.length = (size_t) ((s.end_sec - s.start_sec) * sr);
+            if (w.offset + w.length > pcm.size()) w.length = pcm.size() - w.offset;
+            if (w.length > 0) windows.push_back(w);
+        }
+    } else {
+        const float chunk_len = tp.chunk_length_s > 0.0f ? tp.chunk_length_s : kDefaultChunkLengthS;
+        windows = chunk_audio(pcm.data(), pcm.size(), sr, chunk_len);
+    }
 
     if (!quiet) {
-        std::fprintf(stderr, "asr: '%s' — %.1f s, %zu chunk(s), profile '%s'\n",
+        std::fprintf(stderr, "asr: '%s' — %.1f s, %zu segment(s), profile '%s'%s\n",
                      path.c_str(), (double) pcm.size() / std::max(1, sr),
-                     windows.size(), ctx.profile_name().c_str());
+                     windows.size(), ctx.profile_name().c_str(),
+                     vad ? ", vad" : "");
     }
 
     std::vector<chunk_result> results;
@@ -40,9 +55,6 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
         }
 
         chunk_text ct = ctx.transcribe_chunk(sub, tp_chunk);
-        // The transcription is the primary result: always stream it to stdout
-        // (so -np silences logs but still emits the text). Files are written by
-        // the caller from the merged result.
         if (!ct.text.empty()) {
             std::printf("%s", ct.text.c_str());
             std::fflush(stdout);

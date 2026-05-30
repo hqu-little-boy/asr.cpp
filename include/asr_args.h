@@ -13,6 +13,7 @@ struct cli_args {
     model_params             model;
     transcribe_params        transcribe;
     output_params            output;
+    vad_run_params           vad;
     std::vector<std::string> input_files;
 
     bool        help  = false; // -h/--help was given

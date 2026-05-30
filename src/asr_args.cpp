@@ -65,6 +65,26 @@ cli_args parse_args(int argc, const char * const * argv) {
             a.output.out_txt = true;
         } else if (arg == "-oj") {
             a.output.out_json = true;
+        } else if (arg == "-osrt") {
+            a.output.out_srt = true;
+        } else if (arg == "-ovtt") {
+            a.output.out_vtt = true;
+        } else if (arg == "--vad") {
+            a.vad.use_vad = true;
+        } else if (arg == "--vad-model") {
+            if (const char * v = need(i, arg)) a.vad.model_path = v;
+        } else if (arg == "--vad-threshold") {
+            if (const char * v = need(i, arg)) {
+                if (!to_float(v, a.vad.threshold)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
+            }
+        } else if (arg == "--vad-min-speech") {
+            if (const char * v = need(i, arg)) {
+                if (!to_float(v, a.vad.min_speech_sec)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
+            }
+        } else if (arg == "--vad-min-silence") {
+            if (const char * v = need(i, arg)) {
+                if (!to_float(v, a.vad.min_silence_sec)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
+            }
         } else if (arg == "-np" || arg == "--no-prints") {
             a.output.no_prints = true;
         } else if (arg == "-ng" || arg == "--no-gpu") {
@@ -119,6 +139,9 @@ cli_args parse_args(int argc, const char * const * argv) {
         } else if (a.input_files.empty()) {
             a.error = true;
             a.error_msg = "no input audio files given";
+        } else if (a.vad.use_vad && a.vad.model_path.empty()) {
+            a.error = true;
+            a.error_msg = "--vad requires --vad-model";
         }
     }
 
@@ -139,6 +162,8 @@ std::string usage_string(const char * argv0) {
     s += "  -of,  --output-file BASE  output file base path (no extension)\n";
     s += "  -otxt                     write .txt transcription\n";
     s += "  -oj                       write .json transcription\n";
+    s += "  -osrt                     write .srt subtitles\n";
+    s += "  -ovtt                     write .vtt subtitles\n";
     s += "  -np,  --no-prints         only print results\n";
     s += "  -t,   --threads N         number of threads\n";
     s += "  -ng,  --no-gpu            disable GPU\n";
@@ -147,6 +172,11 @@ std::string usage_string(const char * argv0) {
     s += "        --profile NAME      override model profile\n";
     s += "        --carry-context     feed prior transcript as context (experimental)\n";
     s += "  -n,   --n-predict N       max tokens generated per chunk\n";
+    s += "        --vad               use FireRedVAD for speech segmentation\n";
+    s += "        --vad-model FNAME   FireRedVAD GGUF model (required with --vad)\n";
+    s += "        --vad-threshold N   VAD speech probability threshold (default 0.5)\n";
+    s += "        --vad-min-speech N  minimum speech duration in seconds (default 0.25)\n";
+    s += "        --vad-min-silence N minimum silence duration in seconds (default 0.10)\n";
     s += "  -h,   --help              show this help message\n";
     return s;
 }

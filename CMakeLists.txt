@@ -66,8 +66,8 @@ if(ASR_BUILD_ENGINE)
     target_link_libraries(asr_engine PUBLIC asr_core mtmd llama-common)
     target_compile_features(asr_engine PRIVATE cxx_std_17)
 
-    # Wire the CLI to the engine.
-    target_link_libraries(asr-cli PRIVATE asr_engine)
+    # Wire the CLI to the engine + VAD.
+    target_link_libraries(asr-cli PRIVATE asr_engine asr_vad)
     target_compile_definitions(asr-cli PRIVATE ASR_WITH_ENGINE)
 endif()
 

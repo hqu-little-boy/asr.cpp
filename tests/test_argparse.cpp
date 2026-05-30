@@ -134,3 +134,30 @@ TEST(Args, CarryContextFlag) {
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_TRUE(a.transcribe.carry_context);
 }
+
+TEST(Args, SrtVttFlags) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-osrt", "-ovtt"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_TRUE(a.output.out_srt);
+    EXPECT_TRUE(a.output.out_vtt);
+}
+
+TEST(Args, VadFlags) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
+                    "--vad", "--vad-model", "v.gguf",
+                    "--vad-threshold", "0.6",
+                    "--vad-min-speech", "0.3",
+                    "--vad-min-silence", "0.2"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_TRUE(a.vad.use_vad);
+    EXPECT_EQ(a.vad.model_path, "v.gguf");
+    EXPECT_FLOAT_EQ(a.vad.threshold, 0.6f);
+    EXPECT_FLOAT_EQ(a.vad.min_speech_sec, 0.3f);
+    EXPECT_FLOAT_EQ(a.vad.min_silence_sec, 0.2f);
+}
+
+TEST(Args, VadRequiresModel) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "--vad"});
+    EXPECT_TRUE(a.error);
+    EXPECT_NE(a.error_msg.find("vad-model"), std::string::npos);
+}

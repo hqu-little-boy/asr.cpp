@@ -6,6 +6,7 @@
 #include "asr_engine.h"
 #include "asr_driver.h"
 #include "asr_output.h"
+#include "asr_vad.h"
 
 #include <fstream>
 #include <string>
@@ -31,36 +32,57 @@ int main(int argc, char ** argv) {
         return 1;
     }
 
+    // Optionally load FireRedVAD.
+    std::unique_ptr<asr::vad_context> vad;
+    if (args.vad.use_vad) {
+        vad = asr::vad_context::load(args.vad.model_path);
+        if (!vad) {
+            std::fprintf(stderr, "error: failed to load VAD model '%s'\n", args.vad.model_path.c_str());
+            return 1;
+        }
+    }
+
+    asr::vad_params vp;
+    vp.threshold       = args.vad.threshold;
+    vp.min_speech_sec  = args.vad.min_speech_sec;
+    vp.min_silence_sec = args.vad.min_silence_sec;
+
     int ret = 0;
     for (const auto & file : args.input_files) {
         asr::result r;
-        if (!asr::transcribe_file(*ctx, file, args.transcribe, args.output.no_prints, r)) {
+        if (!asr::transcribe_file(*ctx, file, args.transcribe, args.output.no_prints,
+                                  r, vad.get(), vp)) {
             ret = 1;
             continue;
         }
 
-        if (args.output.out_txt || args.output.out_json) {
-            const std::string base = args.output.out_base.empty() ? file : args.output.out_base;
-            if (args.output.out_txt) {
-                std::ofstream f(base + ".txt");
-                if (f) {
-                    asr::write_txt(f, r);
-                    if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.txt\n", base.c_str());
-                } else {
-                    std::fprintf(stderr, "error: cannot write %s.txt\n", base.c_str());
-                    ret = 1;
-                }
-            }
-            if (args.output.out_json) {
-                std::ofstream f(base + ".json");
-                if (f) {
-                    asr::write_json(f, r);
-                    if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.json\n", base.c_str());
-                } else {
-                    std::fprintf(stderr, "error: cannot write %s.json\n", base.c_str());
-                    ret = 1;
-                }
-            }
+        const std::string base = args.output.out_base.empty() ? file : args.output.out_base;
+
+        // Determine subtitle cues once (shared by srt/vtt).
+        std::vector<asr::subtitle_cue> cues;
+        if (args.output.out_srt || args.output.out_vtt) {
+            cues = asr::split_cues(r);
+        }
+
+        if (args.output.out_txt) {
+            std::ofstream f(base + ".txt");
+            if (f) { asr::write_txt(f, r); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.txt\n", base.c_str()); }
+            else { std::fprintf(stderr, "error: cannot write %s.txt\n", base.c_str()); ret = 1; }
+        }
+        if (args.output.out_json) {
+            std::ofstream f(base + ".json");
+            if (f) { asr::write_json(f, r); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.json\n", base.c_str()); }
+            else { std::fprintf(stderr, "error: cannot write %s.json\n", base.c_str()); ret = 1; }
+        }
+        if (args.output.out_srt) {
+            std::ofstream f(base + ".srt");
+            if (f) { asr::write_srt(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.srt (%zu cues)\n", base.c_str(), cues.size()); }
+            else { std::fprintf(stderr, "error: cannot write %s.srt\n", base.c_str()); ret = 1; }
+        }
+        if (args.output.out_vtt) {
+            std::ofstream f(base + ".vtt");
+            if (f) { asr::write_vtt(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.vtt (%zu cues)\n", base.c_str(), cues.size()); }
+            else { std::fprintf(stderr, "error: cannot write %s.vtt\n", base.c_str()); ret = 1; }
         }
     }
     return ret;

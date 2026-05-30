@@ -2,19 +2,27 @@
 
 #include "asr.h"
 #include "asr_engine.h"
+#include "asr_vad.h"
 
 #include <string>
 
 namespace asr {
 
 // Default chunk length (seconds) when transcribe_params.chunk_length_s <= 0.
-// Tuned empirically in Phase 3; 30s is a safe starting point.
+// Used only in the non-VAD (fixed-window) path.
 constexpr float kDefaultChunkLengthS = 30.0f;
 
-// Transcribe one audio file end to end: load -> chunk -> per-chunk transcribe
-// (printing each cleaned chunk to stdout unless quiet) -> merge -> result.
-// Returns false if the audio could not be loaded.
+// Transcribe one audio file end to end:
+//   - If vad is non-null, use VAD speech segments (with vad_params) as the
+//     segmentation; each VAD segment is transcribed as an independent chunk.
+//   - Otherwise, fall back to the fixed-window + energy-valley chunker.
+//
+// Prints each cleaned chunk to stdout unless quiet. Merges all chunks into
+// `out`. Returns false if the audio could not be loaded.
 bool transcribe_file(asr_context & ctx, const std::string & path,
-                     const transcribe_params & tp, bool quiet, result & out);
+                     const transcribe_params & tp, bool quiet,
+                     result & out,
+                     vad_context * vad = nullptr,
+                     const vad_params & vp = vad_params{});
 
 } // namespace asr
