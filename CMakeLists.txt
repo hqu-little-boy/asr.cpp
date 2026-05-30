@@ -55,6 +55,7 @@ if(ASR_BUILD_TESTS)
     set(ASR_CORE_TESTS
         test_smoke
         test_parse_qwen3a
+        test_chunker
     )
     foreach(t ${ASR_CORE_TESTS})
         add_executable(${t} tests/${t}.cpp)
