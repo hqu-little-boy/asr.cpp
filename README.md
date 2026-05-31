@@ -33,19 +33,20 @@ driver. Timestamps / subtitles (srt/vtt) are planned, not yet implemented.
 ## Dependencies
 
 - `llama.cpp/` present in the project root (vendored; built from source).
+- CLI11 (system-installed) for command-line parsing.
 - GoogleTest (system-installed) for unit tests.
 
 ## Build
 
 ```sh
-# Core + pure-logic tests only (fast; does not compile llama.cpp):
-cmake -S . -B build -DASR_BUILD_ENGINE=OFF
+# Core + pure-logic tests only (default; fast; does not compile llama.cpp):
+cmake -S . -B build
 cmake --build build -j
 ctest --test-dir build
 
 # Full build with the mtmd engine + CLI:
-cmake -S . -B build -DASR_BUILD_ENGINE=ON
-cmake --build build -j
+cmake -S . -B build-engine -DASR_BUILD_ENGINE=ON
+cmake --build build-engine -j
 ```
 
 ## Usage
@@ -79,10 +80,10 @@ files. `-oj` produces minimal JSON: `{"language": "...", "text": "..."}`.
 
 ## Testing
 
-`ctest` runs the pure-logic suite by default. Model-dependent tests
-(`Gguf.ReadsQwen3aProjectorType`, `E2E.TranscribeShortClip`) are skipped unless
-`ASR_RUN_MODEL_TESTS=1` is set and the models are present:
+`ctest` runs the pure-logic suite by default. Engine and model-dependent tests
+are available in an `ASR_BUILD_ENGINE=ON` build; model-dependent cases are
+skipped unless `ASR_RUN_MODEL_TESTS=1` is set and the models are present:
 
 ```sh
-ASR_RUN_MODEL_TESTS=1 ctest --test-dir build
+ASR_RUN_MODEL_TESTS=1 ctest --test-dir build-engine
 ```
