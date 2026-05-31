@@ -6,12 +6,11 @@
 #ifdef ASR_WITH_ENGINE
 #include "asr_engine.h"
 #include "asr_driver.h"
-#include "asr_output.h"
+#include "asr_output_writer.h"
 #include "asr_postprocess.h"
 #include "asr_vad.h"
 
 #include <atomic>
-#include <fstream>
 #include <string>
 
 static std::atomic<bool> g_interrupted{false};
@@ -79,43 +78,23 @@ int main(int argc, char ** argv) {
             seg.text = asr::suppress_repeats(seg.text);
         }
 
-        const std::string base = args.output.out_base.empty() ? file : args.output.out_base;
-
-        std::vector<asr::subtitle_cue> cues;
-        if (args.output.out_srt || args.output.out_vtt ||
-            args.output.out_lrc || args.output.out_csv) {
-            cues = asr::split_cues(r);
+        auto written = asr::write_selected_outputs(r, args.output, file);
+        if (!written) {
+            const auto & err = written.error();
+            std::fprintf(stderr, "error: %s: %s\n",
+                         err.path.string().c_str(), err.message.c_str());
+            ret = 1;
+            continue;
         }
-
-        if (args.output.out_txt) {
-            std::ofstream f(base + ".txt");
-            if (f) { asr::write_txt(f, r); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.txt\n", base.c_str()); }
-            else { std::fprintf(stderr, "error: cannot write %s.txt\n", base.c_str()); ret = 1; }
-        }
-        if (args.output.out_json) {
-            std::ofstream f(base + ".json");
-            if (f) { asr::write_json_full(f, r); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.json\n", base.c_str()); }
-            else { std::fprintf(stderr, "error: cannot write %s.json\n", base.c_str()); ret = 1; }
-        }
-        if (args.output.out_srt) {
-            std::ofstream f(base + ".srt");
-            if (f) { asr::write_srt(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.srt (%zu cues)\n", base.c_str(), cues.size()); }
-            else { std::fprintf(stderr, "error: cannot write %s.srt\n", base.c_str()); ret = 1; }
-        }
-        if (args.output.out_vtt) {
-            std::ofstream f(base + ".vtt");
-            if (f) { asr::write_vtt(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.vtt (%zu cues)\n", base.c_str(), cues.size()); }
-            else { std::fprintf(stderr, "error: cannot write %s.vtt\n", base.c_str()); ret = 1; }
-        }
-        if (args.output.out_lrc) {
-            std::ofstream f(base + ".lrc");
-            if (f) { asr::write_lrc(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.lrc (%zu cues)\n", base.c_str(), cues.size()); }
-            else { std::fprintf(stderr, "error: cannot write %s.lrc\n", base.c_str()); ret = 1; }
-        }
-        if (args.output.out_csv) {
-            std::ofstream f(base + ".csv");
-            if (f) { asr::write_csv(f, cues); if (!args.output.no_prints) std::fprintf(stderr, "asr: saved %s.csv (%zu cues)\n", base.c_str(), cues.size()); }
-            else { std::fprintf(stderr, "error: cannot write %s.csv\n", base.c_str()); ret = 1; }
+        if (!args.output.no_prints) {
+            for (const auto & item : *written) {
+                if (item.cue_count > 0) {
+                    std::fprintf(stderr, "asr: saved %s (%zu cues)\n",
+                                 item.path.string().c_str(), item.cue_count);
+                } else {
+                    std::fprintf(stderr, "asr: saved %s\n", item.path.string().c_str());
+                }
+            }
         }
     }
     return ret;
