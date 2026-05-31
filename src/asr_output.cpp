@@ -1,4 +1,5 @@
 #include "asr_output.h"
+#include "asr_utf8.h"
 
 #include <cstdio>
 
@@ -92,44 +93,6 @@ void write_vtt(std::ostream & os, const std::vector<subtitle_cue> & cues) {
 
 namespace {
 
-// Count UTF-8 codepoints (each lead byte or single-byte char = 1 codepoint).
-size_t count_codepoints(const std::string & s) {
-    size_t n = 0;
-    for (size_t i = 0; i < s.size(); ) {
-        ++n;
-        const unsigned char c = (unsigned char) s[i];
-        i += (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
-    }
-    return n;
-}
-
-// True if byte is a UTF-8 lead byte (start of a multi-byte sequence).
-bool is_lead(unsigned char c) { return (c & 0xC0) != 0x80; }
-
-// Byte offset of the n-th codepoint (0-indexed) in s.
-size_t codepoint_offset(const std::string & s, size_t n) {
-    size_t cp = 0;
-    for (size_t i = 0; i < s.size(); ) {
-        if (cp == n) return i;
-        ++cp;
-        const unsigned char c = (unsigned char) s[i];
-        i += (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
-    }
-    return s.size();
-}
-
-// Codepoint value at byte offset pos (for CJK punctuation detection).
-uint32_t codepoint_at(const std::string & s, size_t pos) {
-    if (pos >= s.size()) return 0;
-    const unsigned char c = (unsigned char) s[pos];
-    if (c < 0x80) return c;
-    if (c < 0xE0) return ((c & 0x1F) << 6) | ((unsigned char) s[pos + 1] & 0x3F);
-    if (c < 0xF0) return ((c & 0x0F) << 12) | (((unsigned char) s[pos + 1] & 0x3F) << 6) |
-                          ((unsigned char) s[pos + 2] & 0x3F);
-    return ((c & 0x07) << 18) | (((unsigned char) s[pos + 1] & 0x3F) << 12) |
-           (((unsigned char) s[pos + 2] & 0x3F) << 6) | ((unsigned char) s[pos + 3] & 0x3F);
-}
-
 bool is_sentence_end(uint32_t cp) {
     return cp == 0x3002 || cp == 0xFF01 || cp == 0xFF1F ||  // 。！？
            cp == '.'    || cp == '!'   || cp == '?';
@@ -150,11 +113,9 @@ std::vector<span> split_at_breaks(const std::string & text,
     size_t piece_start = 0;
     size_t cp_count    = 0;
     for (size_t i = 0; i < text.size(); ) {
-        const size_t next = i + ((unsigned char) text[i] < 0x80 ? 1 :
-                                 (unsigned char) text[i] < 0xE0 ? 2 :
-                                 (unsigned char) text[i] < 0xF0 ? 3 : 4);
+        const size_t next = utf8::next_offset(text, i);
         ++cp_count;
-        if (pred(codepoint_at(text, i)) && cp_count >= min_codepoints_before) {
+        if (pred(utf8::codepoint_at(text, i)) && cp_count >= min_codepoints_before) {
             pieces.push_back({piece_start, next});
             piece_start = next;
             cp_count    = 0;
@@ -177,7 +138,7 @@ int64_t interp_time(int64_t t0, int64_t t1, size_t total_bytes, size_t byte_pos)
 void emit_cues_for_segment(const std::string & text, int64_t t0, int64_t t1,
                            const cue_params & p, int & cue_index,
                            std::vector<subtitle_cue> & out) {
-    const size_t n_cp = count_codepoints(text);
+    const size_t n_cp = utf8::count_codepoints(text);
     if (n_cp == 0) return;
 
     if (n_cp <= (size_t) p.max_chars || !p.split_on_punct) {
@@ -202,7 +163,7 @@ void emit_cues_for_segment(const std::string & text, int64_t t0, int64_t t1,
         pieces.clear();
         for (size_t cp = 0; cp < n_cp; ) {
             const size_t end_cp = std::min(cp + (size_t) p.max_chars, n_cp);
-            pieces.push_back({codepoint_offset(text, cp), codepoint_offset(text, end_cp)});
+            pieces.push_back({utf8::codepoint_offset(text, cp), utf8::codepoint_offset(text, end_cp)});
             cp = end_cp;
         }
     }

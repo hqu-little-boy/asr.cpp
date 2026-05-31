@@ -1,31 +1,13 @@
 #include "asr_postprocess.h"
+#include "asr_utf8.h"
 
+#include <cctype>
 #include <string>
 #include <vector>
 
 namespace asr {
 
 namespace {
-
-// Decode one UTF-8 codepoint starting at `pos`, advance `pos`, return the
-// codepoint as a std::string (the raw UTF-8 bytes). Returns "" if at end.
-std::string next_cp(const std::string & s, size_t & pos) {
-    if (pos >= s.size()) return {};
-    const unsigned char c = (unsigned char) s[pos];
-    const size_t len = (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
-    const size_t end = std::min(pos + len, s.size());
-    std::string cp(s, pos, end - pos);
-    pos = end;
-    return cp;
-}
-
-// Decode the full string into a vector of UTF-8 codepoint strings.
-std::vector<std::string> to_codepoints(const std::string & s) {
-    std::vector<std::string> cps;
-    size_t pos = 0;
-    while (pos < s.size()) cps.push_back(next_cp(s, pos));
-    return cps;
-}
 
 // Re-join codepoints into a single string.
 std::string from_codepoints(const std::vector<std::string> & cps) {
@@ -37,7 +19,7 @@ std::string from_codepoints(const std::vector<std::string> & cps) {
 } // namespace
 
 std::string fix_char_repeats(const std::string & s, int threshold) {
-    const auto cps = to_codepoints(s);
+    const auto cps = utf8::to_codepoints(s);
     std::vector<std::string> out;
     std::string prev;
     int count = 0;
@@ -67,7 +49,7 @@ std::string fix_char_repeats(const std::string & s, int threshold) {
 }
 
 std::string fix_pattern_repeats(const std::string & s, int threshold) {
-    const auto cps = to_codepoints(s);
+    const auto cps = utf8::to_codepoints(s);
     if (cps.size() < 2) return s;
 
     // Try n-gram sizes 2..6.
@@ -114,31 +96,18 @@ std::string suppress_repeats(const std::string & s, int threshold) {
 }
 
 namespace {
-// Count UTF-8 codepoints.
-size_t count_cp(const std::string & s) {
-    size_t n = 0;
-    for (size_t i = 0; i < s.size(); ) {
-        ++n;
-        const unsigned char c = (unsigned char) s[i];
-        i += (c < 0x80) ? 1 : (c < 0xE0) ? 2 : (c < 0xF0) ? 3 : 4;
-    }
-    return n;
-}
-
 // Compute the length (in codepoints) of the longest common prefix of a and b.
 size_t common_prefix_cps(const std::string & a, const std::string & b) {
     size_t n = 0, ia = 0, ib = 0;
     while (ia < a.size() && ib < b.size()) {
-        const size_t la = (unsigned char) a[ia] < 0x80 ? 1 :
-                          (unsigned char) a[ia] < 0xE0 ? 2 :
-                          (unsigned char) a[ia] < 0xF0 ? 3 : 4;
-        const size_t lb = (unsigned char) b[ib] < 0x80 ? 1 :
-                          (unsigned char) b[ib] < 0xE0 ? 2 :
-                          (unsigned char) b[ib] < 0xF0 ? 3 : 4;
+        const size_t next_a = utf8::next_offset(a, ia);
+        const size_t next_b = utf8::next_offset(b, ib);
+        const size_t la = next_a - ia;
+        const size_t lb = next_b - ib;
         if (la != lb || a.compare(ia, la, b, ib, lb) != 0) break;
         ++n;
-        ia += la;
-        ib += lb;
+        ia = next_a;
+        ib = next_b;
     }
     return n;
 }
@@ -158,8 +127,8 @@ void dedup_segments(result & r, size_t min_common) {
             if (!cur.empty()) deduped.push_back(r.segments[i]);
             continue;
         }
-        const size_t cp_prev = count_cp(prev);
-        const size_t cp_cur  = count_cp(cur);
+        const size_t cp_prev = utf8::count_codepoints(prev);
+        const size_t cp_cur  = utf8::count_codepoints(cur);
         const size_t cp_com  = common_prefix_cps(prev, cur);
 
         // If one text is a prefix of the other (≥ min_common codepoints),
