@@ -57,7 +57,8 @@ TEST(Args, MissingInput) {
 
 TEST(Args, OutputFlags) {
     auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
-                    "-otxt", "-oj", "-of", "out/base"});
+                    "-otxt", "-oj", "-of", "out/base",
+                    "--vad", "--vad-model", "v.gguf"});
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_TRUE(a.output.out_txt);
     EXPECT_TRUE(a.output.out_json);
@@ -80,6 +81,27 @@ TEST(Args, ProcessorsLongFlag) {
     auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "--processors", "16"});
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_EQ(a.processors, 16);
+}
+
+TEST(Args, OutputFormatsRequireVad) {
+    // txt alone is fine without --vad
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-otxt"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+
+    // json without --vad should fail
+    a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-oj"});
+    EXPECT_TRUE(a.error);
+    EXPECT_NE(a.error_msg.find("--vad"), std::string::npos);
+
+    // srt without --vad should fail
+    a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-osrt"});
+    EXPECT_TRUE(a.error);
+
+    // json with --vad should succeed
+    a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-oj", "--vad", "--vad-model", "v.gguf"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_TRUE(a.output.out_json);
+    EXPECT_TRUE(a.vad.use_vad);
 }
 
 TEST(Args, ThreadsBadValue) {
@@ -150,7 +172,8 @@ TEST(Args, CarryContextFlag) {
 }
 
 TEST(Args, SrtVttFlags) {
-    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-osrt", "-ovtt"});
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
+                    "-osrt", "-ovtt", "--vad", "--vad-model", "v.gguf"});
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_TRUE(a.output.out_srt);
     EXPECT_TRUE(a.output.out_vtt);
@@ -206,7 +229,8 @@ TEST(Args, SamplingParamsDefault) {
 }
 
 TEST(Args, LrcCsvFlags) {
-    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-olrc", "-ocsv"});
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
+                    "-olrc", "-ocsv", "--vad", "--vad-model", "v.gguf"});
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_TRUE(a.output.out_lrc);
     EXPECT_TRUE(a.output.out_csv);
@@ -214,7 +238,8 @@ TEST(Args, LrcCsvFlags) {
 
 TEST(Args, OutputFormatFlag) {
     auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav",
-                    "--output-format", "srt", "--output-format", "csv"});
+                    "--output-format", "srt", "--output-format", "csv",
+                    "--vad", "--vad-model", "v.gguf"});
     ASSERT_FALSE(a.error) << a.error_msg;
     EXPECT_TRUE(a.output.out_srt);
     EXPECT_TRUE(a.output.out_csv);

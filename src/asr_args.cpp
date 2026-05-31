@@ -219,6 +219,11 @@ cli_args parse_args(int argc, const char * const * argv) {
         } else if (a.vad.use_vad && a.vad.model_path.empty()) {
             a.error = true;
             a.error_msg = "--vad requires --vad-model";
+        } else if (!a.vad.use_vad &&
+                   (a.output.out_json || a.output.out_srt || a.output.out_vtt ||
+                    a.output.out_lrc  || a.output.out_csv)) {
+            a.error = true;
+            a.error_msg = "output formats other than txt require --vad";
         }
     }
 
