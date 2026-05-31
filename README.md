@@ -150,6 +150,49 @@ Common options:
 
 The transcription always streams to `stdout`; file output flags additionally write files. Subtitle-like formats require VAD so timestamps are available.
 
+## VAD Usage Demo
+
+Using VAD (Voice Activity Detection) enables accurate timestamps for subtitle formats. The FireRedVAD model is bundled in `models/`.
+
+**Generate SRT subtitles with VAD:**
+
+```sh
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    --vad --vad-model models/firered-vad.gguf \
+    audio.wav -osrt
+```
+
+**Generate all subtitle formats at once:**
+
+```sh
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    --vad --vad-model models/firered-vad.gguf \
+    audio.wav -osrt -ovtt -olrc -ocsv
+```
+
+**Tune VAD sensitivity:**
+
+```sh
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    --vad --vad-model models/firered-vad.gguf \
+    --vad-threshold 0.3 --vad-min-speech 0.5 --vad-min-silence 0.2 \
+    audio.wav -osrt
+```
+
+| VAD Option | Default | Meaning |
+| --- | --- | --- |
+| `--vad` | off | enable FireRedVAD speech segmentation |
+| `--vad-model FNAME` | — | FireRedVAD GGUF model path (required with `--vad`) |
+| `--vad-threshold N` | 0.5 | speech probability threshold (lower = more sensitive) |
+| `--vad-min-speech N` | 0.25 | minimum speech segment duration in seconds |
+| `--vad-min-silence N` | 0.10 | minimum silence gap between segments in seconds |
+
 ## Testing
 
 `ctest` runs the pure-logic suite by default. Engine and model-dependent tests are available in an `ASR_BUILD_ENGINE=ON` build; model-dependent cases are skipped unless `ASR_RUN_MODEL_TESTS=1` is set and the models are present:
@@ -309,6 +352,49 @@ done
 | `-p, --processors N` | 并行推理实例数 |
 
 转录结果始终输出到 `stdout`；文件输出选项会额外写入文件。字幕类格式需要 VAD 以获取时间戳。
+
+## VAD 使用演示
+
+使用 VAD（语音活动检测）可以为字幕格式生成精确的时间戳。FireRedVAD 模型已放置在 `models/` 目录中。
+
+**生成 SRT 字幕：**
+
+```sh
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    --vad --vad-model models/firered-vad.gguf \
+    audio.wav -osrt
+```
+
+**一次性生成所有字幕格式：**
+
+```sh
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    --vad --vad-model models/firered-vad.gguf \
+    audio.wav -osrt -ovtt -olrc -ocsv
+```
+
+**调整 VAD 灵敏度：**
+
+```sh
+./build/asr-cli \
+    -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
+    --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    --vad --vad-model models/firered-vad.gguf \
+    --vad-threshold 0.3 --vad-min-speech 0.5 --vad-min-silence 0.2 \
+    audio.wav -osrt
+```
+
+| VAD 选项 | 默认值 | 含义 |
+| --- | --- | --- |
+| `--vad` | 关闭 | 启用 FireRedVAD 语音分段 |
+| `--vad-model FNAME` | — | FireRedVAD 模型路径（配合 `--vad` 使用时必需） |
+| `--vad-threshold N` | 0.5 | 语音概率阈值（值越低越灵敏） |
+| `--vad-min-speech N` | 0.25 | 最小语音段时长（秒） |
+| `--vad-min-silence N` | 0.10 | 语音段之间的最小静音间隔（秒） |
 
 ## 测试
 
