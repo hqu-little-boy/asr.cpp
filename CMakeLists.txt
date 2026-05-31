@@ -13,5 +13,7 @@ option(ASR_BUILD_ENGINE "Build the mtmd-backed engine and full CLI (requires lla
 option(ASR_BUILD_TESTS  "Build unit tests (GoogleTest)" ON)
 
 include(cmake/Dependencies.cmake)
+asr_configure_dependencies()
+
 include(cmake/Targets.cmake)
 include(cmake/Testing.cmake)
