@@ -8,6 +8,7 @@
 #include <atomic>
 #include <cstdio>
 #include <mutex>
+#include <span>
 #include <thread>
 #include <vector>
 
@@ -54,7 +55,7 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
         }
     } else {
         const float chunk_len = tp.chunk_length_s > 0.0f ? tp.chunk_length_s : kDefaultChunkLengthS;
-        windows = chunk_audio(pcm.data(), pcm.size(), sr, chunk_len);
+        windows = chunk_audio(std::span<const float>(pcm), sr, chunk_len);
     }
 
     if (!quiet) {

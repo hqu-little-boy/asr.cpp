@@ -1,7 +1,9 @@
 #include "asr_merge.h"
 
 #include <cctype>
+#include <span>
 #include <string>
+#include <string_view>
 
 namespace asr {
 
@@ -22,10 +24,10 @@ int64_t samples_to_ms(size_t samples, int sample_rate) {
 // Find the longest suffix of `prev` that is also a prefix of `next`, with
 // length >= min_overlap. Returns the overlap length (0 if none found).
 // Used to detect and remove duplicate text at chunk boundaries.
-size_t find_overlap(const std::string & prev, const std::string & next, size_t min_overlap = 8) {
+size_t find_overlap(std::string_view prev, std::string_view next, size_t min_overlap = 8) {
     const size_t max_len = std::min(prev.size(), next.size());
     for (size_t len = max_len; len >= min_overlap; --len) {
-        if (prev.compare(prev.size() - len, len, next, 0, len) == 0) {
+        if (prev.substr(prev.size() - len, len) == next.substr(0, len)) {
             return len;
         }
     }
@@ -34,7 +36,9 @@ size_t find_overlap(const std::string & prev, const std::string & next, size_t m
 
 } // namespace
 
-result merge_chunks(const std::vector<chunk_result> & chunks, int sample_rate) {
+namespace {
+
+result merge_chunk_span(std::span<const chunk_result> chunks, int sample_rate) {
     result r;
     if (sample_rate <= 0) {
         sample_rate = 16000; // defensive; callers pass the model rate
@@ -83,6 +87,12 @@ result merge_chunks(const std::vector<chunk_result> & chunks, int sample_rate) {
     }
 
     return r;
+}
+
+} // namespace
+
+result merge_chunks(const std::vector<chunk_result> & chunks, int sample_rate) {
+    return merge_chunk_span(std::span<const chunk_result>(chunks), sample_rate);
 }
 
 } // namespace asr
