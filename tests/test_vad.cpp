@@ -23,12 +23,6 @@ std::string vad_model_path() {
     return std::string(ASR_SOURCE_DIR) + "/models/firered-vad-GGUF/firered-vad.gguf";
 }
 
-bool model_exists() {
-    return std::getenv("ASR_RUN_MODEL_TESTS") &&
-           !asr::vad_context::load(vad_model_path()).operator bool() == false &&
-           asr::vad_context::load(vad_model_path()) != nullptr;
-}
-
 // Append n samples of silence (zeros) to out.
 void append_silence(std::vector<float> & out, size_t n) {
     out.insert(out.end(), n, 0.0f);
