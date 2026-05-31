@@ -36,6 +36,12 @@ struct asr_context::impl {
     const profile *           prof = nullptr;
     std::string               profile_name;
 
+    // Stored for clone(): allow creating new worker contexts sharing the model.
+    model_params              stored_mp;
+    common_params             stored_params;
+    bool                      quiet = false;
+    std::string               stored_chat_template; // for recreating in clone()
+
     ~impl() {
         if (smpl) {
             common_sampler_free(smpl);
@@ -129,11 +135,64 @@ std::unique_ptr<asr_context> asr_context::load(const model_params & mp, bool qui
                      projector.c_str(), s.profile_name.c_str(), s.sample_rate);
     }
 
+    // Store params for clone().
+    s.stored_mp    = mp;
+    s.stored_params = params;
+    s.quiet        = quiet;
+    s.stored_chat_template = params.chat_template;
+
     return self;
 }
 
 int                 asr_context::sample_rate() const { return p_->sample_rate; }
 const std::string & asr_context::profile_name() const { return p_->profile_name; }
+
+std::unique_ptr<asr_context> asr_context::clone() const {
+    impl & s = *p_;
+    std::unique_ptr<asr_context> worker(new asr_context());
+    impl & w = *worker->p_;
+
+    // Share read-only resources.
+    w.model        = s.model;
+    w.vocab        = s.vocab;
+    w.use_jinja    = s.use_jinja;
+    w.sample_rate  = s.sample_rate;
+    w.prof         = s.prof;
+    w.profile_name = s.profile_name;
+    w.n_batch      = s.n_batch;
+
+    // Create new chat templates (unique_ptr, can't share).
+    w.tmpls = common_chat_templates_init(s.model, s.stored_chat_template);
+
+    // Create a new mtmd context (not thread-safe — each worker needs its own).
+    mtmd_context_params mparams = mtmd_context_params_default();
+    mparams.use_gpu         = s.stored_mp.mmproj_use_gpu;
+    mparams.print_timings   = false;
+    mparams.n_threads       = s.stored_params.cpuparams.n_threads;
+    mparams.flash_attn_type = s.stored_params.flash_attn_type;
+    mparams.warmup          = false; // skip warmup for clones
+    w.mctx.reset(mtmd_init_from_file(s.stored_mp.mmproj.c_str(), s.model, mparams));
+    if (!w.mctx.get()) {
+        std::fprintf(stderr, "asr: clone failed to create mtmd context\n");
+        return nullptr;
+    }
+
+    // Create a new llama context from the shared model.
+    llama_context_params cparams = llama_context_default_params();
+    cparams.n_batch  = s.n_batch;
+    cparams.n_ctx    = llama_n_ctx(s.lctx);
+    cparams.flash_attn_type = s.stored_params.flash_attn_type;
+    w.lctx = llama_init_from_model(s.model, cparams);
+    if (!w.lctx) {
+        std::fprintf(stderr, "asr: clone failed to create llama context\n");
+        return nullptr;
+    }
+
+    w.smpl  = common_sampler_init(s.model, s.stored_params.sampling);
+    w.batch = llama_batch_init(1, 0, 1);
+
+    return worker;
+}
 
 bool asr_context::load_audio(const std::string & path, std::vector<float> & out_pcm) const {
     return load_audio_pcm(p_->mctx.get(), path, out_pcm);

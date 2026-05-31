@@ -73,13 +73,13 @@ TEST(Args, Threads) {
 TEST(Args, ProcessorsFlag) {
     auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-p", "4"});
     ASSERT_FALSE(a.error) << a.error_msg;
-    EXPECT_EQ(a.model.n_threads, 4);
+    EXPECT_EQ(a.processors, 4);
 }
 
 TEST(Args, ProcessorsLongFlag) {
     auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "--processors", "16"});
     ASSERT_FALSE(a.error) << a.error_msg;
-    EXPECT_EQ(a.model.n_threads, 16);
+    EXPECT_EQ(a.processors, 16);
 }
 
 TEST(Args, ThreadsBadValue) {

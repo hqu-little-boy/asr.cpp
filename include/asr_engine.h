@@ -30,6 +30,11 @@ class asr_context {
     // context. Returns {text, language} parsed by the profile.
     chunk_text transcribe_chunk(const std::vector<float> & pcm, const transcribe_params & tp);
 
+    // Create a new independent inference context sharing the same model.
+    // Each clone gets its own llama_context, sampler, and batch — suitable
+    // for parallel processing from a separate thread.
+    std::unique_ptr<asr_context> clone() const;
+
     // Decode an audio file to mono PCM at the model's sample rate.
     bool load_audio(const std::string & path, std::vector<float> & out_pcm) const;
 

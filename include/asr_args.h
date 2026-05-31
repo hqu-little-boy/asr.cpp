@@ -16,6 +16,7 @@ struct cli_args {
     vad_run_params           vad;
     std::vector<std::string> input_files;
 
+    int         processors = 1; // -p/--processors: parallel inference instances
     bool        help  = false; // -h/--help was given
     bool        error = false; // a parse or validation error occurred
     std::string error_msg;     // human-readable error (when error == true)
