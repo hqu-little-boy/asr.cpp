@@ -1,41 +1,13 @@
 #include "asr_args.h"
 #include "asr.h"
 
+#include <CLI/CLI.hpp>
+
 #include <fstream>
 #include <string>
 #include <vector>
 
 namespace asr {
-
-namespace {
-
-// Parse a full integer string. Returns false if not entirely numeric.
-bool to_int(const std::string & s, int & out) {
-    try {
-        size_t pos = 0;
-        int v = std::stoi(s, &pos);
-        if (pos != s.size()) return false;
-        out = v;
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-
-// Parse a full float string. Returns false if not entirely numeric.
-bool to_float(const std::string & s, float & out) {
-    try {
-        size_t pos = 0;
-        float v = std::stof(s, &pos);
-        if (pos != s.size()) return false;
-        out = v;
-        return true;
-    } catch (...) {
-        return false;
-    }
-}
-
-} // namespace
 
 namespace {
 // Expand @file tokens: each line in the file becomes a separate argument.
@@ -67,142 +39,117 @@ std::vector<std::string> expand_response_files(int argc, const char * const * ar
     }
     return expanded;
 }
+
+void normalize_legacy_options(std::vector<std::string> & args) {
+    for (std::string & arg : args) {
+        if      (arg == "-of")   arg = "--output-file";
+        else if (arg == "-otxt") arg = "--out-txt";
+        else if (arg == "-oj")   arg = "--out-json";
+        else if (arg == "-osrt") arg = "--out-srt";
+        else if (arg == "-ovtt") arg = "--out-vtt";
+        else if (arg == "-olrc") arg = "--out-lrc";
+        else if (arg == "-ocsv") arg = "--out-csv";
+        else if (arg == "-np")   arg = "--no-prints";
+        else if (arg == "-ng")   arg = "--no-gpu";
+    }
+}
+
+void add_output_format(cli_args & a, const std::string & fmt) {
+    if (fmt == "txt" || fmt == "text") { a.output.out_txt = true; }
+    else if (fmt == "json")            { a.output.out_json = true; }
+    else if (fmt == "srt")             { a.output.out_srt = true; }
+    else if (fmt == "vtt")             { a.output.out_vtt = true; }
+    else if (fmt == "lrc")             { a.output.out_lrc = true; }
+    else if (fmt == "csv")             { a.output.out_csv = true; }
+    else {
+        a.error = true;
+        a.error_msg = "unknown format: " + fmt;
+    }
+}
+
+std::string cli11_error_message(const CLI::ParseError & e) {
+    const std::string msg = e.what();
+    if (e.get_name() == "ArgumentMismatch") {
+        const std::string missing = " missing";
+        const std::string required = " required ";
+        const size_t colon = msg.find(':');
+        if (colon != std::string::npos &&
+            msg.find(required, colon) != std::string::npos &&
+            msg.rfind(missing) == msg.size() - missing.size()) {
+            return "missing value for " + msg.substr(0, colon);
+        }
+    }
+    const std::string one = "The following argument was not expected: ";
+    const std::string many = "The following arguments were not expected: ";
+    const size_t one_pos = msg.find(one);
+    const size_t many_pos = msg.find(many);
+    if (one_pos != std::string::npos) return "unknown argument: " + msg.substr(one_pos + one.size());
+    if (many_pos != std::string::npos) return "unknown argument: " + msg.substr(many_pos + many.size());
+    return msg;
+}
 } // namespace
 
 cli_args parse_args(int argc, const char * const * argv) {
     cli_args a;
 
     // Expand @responsefiles first.
-    const std::vector<std::string> expanded = expand_response_files(argc, argv);
+    std::vector<std::string> expanded = expand_response_files(argc, argv);
+    normalize_legacy_options(expanded);
     const int exp_argc = (int) expanded.size();
     // Build a c-string array for the rest of the parser.
     std::vector<const char *> exp_argv(exp_argc);
     for (int i = 0; i < exp_argc; ++i) exp_argv[i] = expanded[i].c_str();
 
-    // Fetch the value following a value-taking flag, or flag an error.
-    auto need = [&](int & i, const std::string & flag) -> const char * {
-        if (i + 1 >= exp_argc) {
-            a.error = true;
-            a.error_msg = "missing value for " + flag;
-            return nullptr;
-        }
-        return exp_argv[++i];
-    };
+    CLI::App app{"asr.cpp speech recognition"};
+    app.set_help_flag("-h,--help", "show this help message");
 
-    for (int i = 1; i < exp_argc && !a.error; ++i) {
-        const std::string arg = exp_argv[i];
+    app.add_option("-m,--model", a.model.model, "main GGUF model");
+    app.add_option("--mmproj", a.model.mmproj, "multimodal projector GGUF");
+    app.add_option_function<std::string>("-f,--file", [&](const std::string & path) {
+        a.input_files.emplace_back(path);
+    }, "input audio file")->trigger_on_parse();
+    app.add_option("--output-file", a.output.out_base, "output file base path");
+    app.add_flag("--out-txt", a.output.out_txt, "write .txt transcription");
+    app.add_flag("--out-json", a.output.out_json, "write .json transcription");
+    app.add_flag("--out-srt", a.output.out_srt, "write .srt subtitles");
+    app.add_flag("--out-vtt", a.output.out_vtt, "write .vtt subtitles");
+    app.add_flag("--out-lrc", a.output.out_lrc, "write .lrc lyrics");
+    app.add_flag("--out-csv", a.output.out_csv, "write .csv");
+    app.add_option_function<std::string>("--output-format", [&](const std::string & fmt) {
+        add_output_format(a, fmt);
+    }, "output format")->trigger_on_parse();
+    app.add_flag("--vad", a.vad.use_vad, "use FireRedVAD");
+    app.add_option("--vad-model", a.vad.model_path, "FireRedVAD GGUF model");
+    app.add_option("--vad-threshold", a.vad.threshold, "VAD speech probability threshold");
+    app.add_option("--vad-min-speech", a.vad.min_speech_sec, "minimum speech duration");
+    app.add_option("--vad-min-silence", a.vad.min_silence_sec, "minimum silence duration");
+    app.add_flag("--no-prints", a.output.no_prints, "only print results");
+    app.add_flag_callback("--no-gpu", [&]() {
+        a.model.use_gpu = false;
+        a.model.mmproj_use_gpu = false;
+    }, "disable GPU");
+    app.add_option("--context", a.transcribe.context, "context / hotwords bias");
+    app.add_option("-l,--language", a.transcribe.language, "force language");
+    app.add_option("--profile", a.model.profile_override, "override model profile");
+    app.add_flag("--carry-context", a.transcribe.carry_context, "feed prior transcript as context");
+    app.add_option("--temperature", a.transcribe.temperature, "sampling temperature");
+    app.add_option("--top-p", a.transcribe.top_p, "top-p sampling");
+    app.add_option("--repeat-penalty", a.transcribe.repeat_penalty, "repeat penalty");
+    app.add_option("-t,--threads", a.model.n_threads, "number of threads per inference");
+    app.add_option("-p,--processors", a.processors, "number of parallel inference instances");
+    app.add_option("-n,--n-predict", a.transcribe.n_predict, "max tokens generated per chunk");
+    app.add_option("--chunk-length", a.transcribe.chunk_length_s, "chunk length in seconds");
+    app.add_option_function<std::string>("input", [&](const std::string & path) {
+        a.input_files.emplace_back(path);
+    }, "input audio file")->expected(-1)->trigger_on_parse();
 
-        if (arg == "-h" || arg == "--help") {
-            a.help = true;
-        } else if (arg == "-m" || arg == "--model") {
-            if (const char * v = need(i, arg)) a.model.model = v;
-        } else if (arg == "--mmproj") {
-            if (const char * v = need(i, arg)) a.model.mmproj = v;
-        } else if (arg == "-f" || arg == "--file") {
-            if (const char * v = need(i, arg)) a.input_files.emplace_back(v);
-        } else if (arg == "-of" || arg == "--output-file") {
-            if (const char * v = need(i, arg)) a.output.out_base = v;
-        } else if (arg == "-otxt") {
-            a.output.out_txt = true;
-        } else if (arg == "-oj") {
-            a.output.out_json = true;
-        } else if (arg == "-osrt") {
-            a.output.out_srt = true;
-        } else if (arg == "-ovtt") {
-            a.output.out_vtt = true;
-        } else if (arg == "-olrc") {
-            a.output.out_lrc = true;
-        } else if (arg == "-ocsv") {
-            a.output.out_csv = true;
-        } else if (arg == "--output-format") {
-            if (const char * v = need(i, arg)) {
-                const std::string fmt = v;
-                if (fmt == "txt" || fmt == "text")    { a.output.out_txt  = true; }
-                else if (fmt == "json")                { a.output.out_json = true; }
-                else if (fmt == "srt")                 { a.output.out_srt  = true; }
-                else if (fmt == "vtt")                 { a.output.out_vtt  = true; }
-                else if (fmt == "lrc")                 { a.output.out_lrc  = true; }
-                else if (fmt == "csv")                 { a.output.out_csv  = true; }
-                else { a.error = true; a.error_msg = "unknown format: " + fmt; }
-            }
-        } else if (arg == "--vad") {
-            a.vad.use_vad = true;
-        } else if (arg == "--vad-model") {
-            if (const char * v = need(i, arg)) a.vad.model_path = v;
-        } else if (arg == "--vad-threshold") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.vad.threshold)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
-            }
-        } else if (arg == "--vad-min-speech") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.vad.min_speech_sec)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
-            }
-        } else if (arg == "--vad-min-silence") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.vad.min_silence_sec)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
-            }
-        } else if (arg == "-np" || arg == "--no-prints") {
-            a.output.no_prints = true;
-        } else if (arg == "-ng" || arg == "--no-gpu") {
-            a.model.use_gpu = false;
-            a.model.mmproj_use_gpu = false;
-        } else if (arg == "--context") {
-            if (const char * v = need(i, arg)) a.transcribe.context = v;
-        } else if (arg == "-l" || arg == "--language") {
-            if (const char * v = need(i, arg)) a.transcribe.language = v;
-        } else if (arg == "--profile") {
-            if (const char * v = need(i, arg)) a.model.profile_override = v;
-        } else if (arg == "--carry-context") {
-            a.transcribe.carry_context = true;
-        } else if (arg == "--temperature") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.transcribe.temperature)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
-            }
-        } else if (arg == "--top-p") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.transcribe.top_p)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
-            }
-        } else if (arg == "--repeat-penalty") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.transcribe.repeat_penalty)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
-            }
-        } else if (arg == "-t" || arg == "--threads") {
-            if (const char * v = need(i, arg)) {
-                if (!to_int(v, a.model.n_threads)) {
-                    a.error = true;
-                    a.error_msg = "invalid integer for " + arg + ": " + v;
-                }
-            }
-        } else if (arg == "-p" || arg == "--processors") {
-            if (const char * v = need(i, arg)) {
-                if (!to_int(v, a.processors)) {
-                    a.error = true;
-                    a.error_msg = "invalid integer for " + arg + ": " + v;
-                }
-            }
-        } else if (arg == "-n" || arg == "--n-predict") {
-            if (const char * v = need(i, arg)) {
-                if (!to_int(v, a.transcribe.n_predict)) {
-                    a.error = true;
-                    a.error_msg = "invalid integer for " + arg + ": " + v;
-                }
-            }
-        } else if (arg == "--chunk-length") {
-            if (const char * v = need(i, arg)) {
-                if (!to_float(v, a.transcribe.chunk_length_s)) {
-                    a.error = true;
-                    a.error_msg = "invalid number for " + arg + ": " + v;
-                }
-            }
-        } else if (arg == "-") {
-            // stdin convention: keep as a literal input token.
-            a.input_files.emplace_back(arg);
-        } else if (!arg.empty() && arg[0] == '-') {
-            a.error = true;
-            a.error_msg = "unknown argument: " + arg;
-        } else {
-            a.input_files.emplace_back(arg);
-        }
+    try {
+        app.parse(exp_argc, exp_argv.data());
+    } catch (const CLI::CallForHelp &) {
+        a.help = true;
+    } catch (const CLI::ParseError & e) {
+        a.error = true;
+        a.error_msg = cli11_error_message(e);
     }
 
     // Validate required options (skipped on --help or an earlier error).

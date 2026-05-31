@@ -12,6 +12,8 @@ endif()
 option(ASR_BUILD_ENGINE "Build the mtmd-backed engine and full CLI (requires llama.cpp)" ON)
 option(ASR_BUILD_TESTS  "Build unit tests (GoogleTest)" ON)
 
+find_package(CLI11 REQUIRED)
+
 # ---------------------------------------------------------------------------
 # asr_core: pure-logic library (NO llama.cpp / mtmd dependency).
 # Holds parsing, chunking, formatting, argument parsing, profile registry and
@@ -29,6 +31,7 @@ add_library(asr_core STATIC
 )
 target_include_directories(asr_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_compile_features(asr_core PUBLIC cxx_std_17)
+target_link_libraries(asr_core PRIVATE CLI11::CLI11)
 
 # ---------------------------------------------------------------------------
 # asr-cli: command-line front-end (thin shell over the library).
