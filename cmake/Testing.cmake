@@ -23,6 +23,7 @@ set(ASR_CORE_TESTS
     test_output_format
     test_argparse
     test_profile_registry
+    test_config_error
     test_merge
     test_carry
     test_srt_vtt

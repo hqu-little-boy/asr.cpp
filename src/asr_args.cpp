@@ -3,6 +3,7 @@
 
 #include <CLI/CLI.hpp>
 
+#include <expected>
 #include <fstream>
 #include <string>
 #include <vector>
@@ -175,6 +176,30 @@ cli_args parse_args(int argc, const char * const * argv) {
     }
 
     return a;
+}
+
+std::expected<cli_args, asr_error> parse_args_checked(int argc, const char * const * argv) {
+    cli_args args = parse_args(argc, argv);
+    if (args.error) {
+        return std::unexpected(make_error(error_code::invalid_argument,
+                                          args.error_msg,
+                                          "parse_args"));
+    }
+    return args;
+}
+
+run_config to_run_config(const cli_args & args) {
+    run_config cfg;
+    cfg.model      = args.model;
+    cfg.transcribe = args.transcribe;
+    cfg.output     = args.output;
+    cfg.vad        = args.vad;
+    cfg.processors = args.processors;
+    cfg.input_files.reserve(args.input_files.size());
+    for (const auto & file : args.input_files) {
+        cfg.input_files.emplace_back(file);
+    }
+    return cfg;
 }
 
 std::string usage_string(const char * argv0) {
