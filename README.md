@@ -7,9 +7,9 @@ touching it.
 
 ## Status
 
-Working end to end for plain-text transcription. v1 scope: a single mtmd engine,
-text output (`stdout` / `-otxt` / `-oj`), long-audio handling via a chunking
-driver. Timestamps / subtitles (srt/vtt) are planned, not yet implemented.
+Working end to end for text transcription with optional VAD segmentation.
+Current outputs include stdout plus txt/json/srt/vtt/lrc/csv files. Long audio
+is handled by either fixed-window chunking or FireRedVAD speech segments.
 
 ## Design
 
@@ -65,8 +65,12 @@ Common options:
 | `-m, --model FNAME` | main GGUF model (required) |
 | `--mmproj FNAME` | multimodal projector GGUF (required) |
 | `-f, --file FNAME` | input audio (wav/mp3/flac); also positional |
-| `-of, --output-file BASE` | output base path (writes `BASE.txt` / `BASE.json`) |
+| `-of, --output-file BASE` | output base path (writes `BASE.<format>`) |
 | `-otxt` / `-oj` | write `.txt` / `.json` |
+| `-osrt` / `-ovtt` | write `.srt` / `.vtt` subtitles; requires `--vad` |
+| `-olrc` / `-ocsv` | write `.lrc` / `.csv`; requires `--vad` |
+| `--output-format FMT` | add output format: `txt`, `json`, `srt`, `vtt`, `lrc`, or `csv` |
+| `--vad, --vad-model FNAME` | segment speech with FireRedVAD |
 | `--chunk-length N` | chunk length in seconds (default 30) |
 | `--context TEXT` | hotword / domain bias passed to the model |
 | `--profile NAME` | override the auto-detected profile |
@@ -74,9 +78,10 @@ Common options:
 | `-ng, --no-gpu` | disable GPU offload |
 | `-np, --no-prints` | mute logs (transcription still prints to stdout) |
 | `-n, --n-predict N` | max tokens generated per chunk |
+| `-p, --processors N` | number of parallel inference instances |
 
-The transcription always streams to `stdout`; `-otxt` / `-oj` additionally write
-files. `-oj` produces minimal JSON: `{"language": "...", "text": "..."}`.
+The transcription always streams to `stdout`; file output flags additionally
+write files. Subtitle-like formats require VAD so timestamps are available.
 
 ## Testing
 
