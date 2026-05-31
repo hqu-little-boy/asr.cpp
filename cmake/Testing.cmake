@@ -22,6 +22,7 @@ set(ASR_CORE_TESTS
     test_chunker
     test_output_format
     test_output_writer
+    test_job
     test_argparse
     test_profile_registry
     test_config_error

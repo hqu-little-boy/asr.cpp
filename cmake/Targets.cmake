@@ -9,6 +9,7 @@ add_library(asr_core STATIC
     ${PROJECT_SOURCE_DIR}/src/asr_chunker.cpp
     ${PROJECT_SOURCE_DIR}/src/asr_output.cpp
     ${PROJECT_SOURCE_DIR}/src/asr_output_writer.cpp
+    ${PROJECT_SOURCE_DIR}/src/asr_job.cpp
     ${PROJECT_SOURCE_DIR}/src/asr_args.cpp
     ${PROJECT_SOURCE_DIR}/src/asr_merge.cpp
     ${PROJECT_SOURCE_DIR}/src/asr_carry.cpp

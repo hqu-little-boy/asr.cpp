@@ -6,12 +6,12 @@
 #ifdef ASR_WITH_ENGINE
 #include "asr_engine.h"
 #include "asr_driver.h"
-#include "asr_output_writer.h"
-#include "asr_postprocess.h"
+#include "asr_job.h"
 #include "asr_vad.h"
 
 #include <atomic>
 #include <string>
+#include <utility>
 
 static std::atomic<bool> g_interrupted{false};
 
@@ -72,22 +72,16 @@ int main(int argc, char ** argv) {
             continue;
         }
 
-        // Suppress repetitions in the merged text.
-        r.text = asr::suppress_repeats(r.text);
-        for (auto & seg : r.segments) {
-            seg.text = asr::suppress_repeats(seg.text);
-        }
-
-        auto written = asr::write_selected_outputs(r, args.output, file);
-        if (!written) {
-            const auto & err = written.error();
+        auto finalized = asr::finalize_transcription(std::move(r), args.output, file);
+        if (!finalized) {
+            const auto & err = finalized.error();
             std::fprintf(stderr, "error: %s: %s\n",
                          err.path.string().c_str(), err.message.c_str());
             ret = 1;
             continue;
         }
         if (!args.output.no_prints) {
-            for (const auto & item : *written) {
+            for (const auto & item : finalized->outputs) {
                 if (item.cue_count > 0) {
                     std::fprintf(stderr, "asr: saved %s (%zu cues)\n",
                                  item.path.string().c_str(), item.cue_count);
