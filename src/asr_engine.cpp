@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -198,7 +199,7 @@ bool asr_context::load_audio(const std::string & path, std::vector<float> & out_
     return load_audio_pcm(p_->mctx.get(), path, out_pcm);
 }
 
-chunk_text asr_context::transcribe_chunk(const std::vector<float> & pcm, const transcribe_params & tp) {
+chunk_text asr_context::transcribe_chunk(std::span<const float> pcm, const transcribe_params & tp) {
     impl &     s = *p_;
     chunk_text empty;
     if (pcm.empty()) {
@@ -288,6 +289,10 @@ chunk_text asr_context::transcribe_chunk(const std::vector<float> & pcm, const t
         return ct;
     }
     return s.prof->parse_output(raw);
+}
+
+chunk_text asr_context::transcribe_chunk(const std::vector<float> & pcm, const transcribe_params & tp) {
+    return transcribe_chunk(std::span<const float>(pcm), tp);
 }
 
 namespace {

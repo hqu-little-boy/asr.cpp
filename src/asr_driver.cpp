@@ -20,8 +20,8 @@ namespace {
 chunk_result transcribe_one(asr_context & ctx, const audio_chunk & w,
                             const std::vector<float> & pcm, int sr,
                             const transcribe_params & tp_chunk, bool quiet) {
-    std::vector<float> sub(pcm.begin() + w.offset, pcm.begin() + w.offset + w.length);
-    chunk_text ct = ctx.transcribe_chunk(sub, tp_chunk);
+    const std::span<const float> samples(pcm);
+    chunk_text ct = ctx.transcribe_chunk(samples.subspan(w.offset, w.length), tp_chunk);
     if (!quiet && !ct.text.empty()) {
         std::printf("%s", ct.text.c_str());
         std::fflush(stdout);

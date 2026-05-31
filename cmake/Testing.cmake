@@ -40,6 +40,7 @@ endforeach()
 # skip at runtime unless ASR_RUN_MODEL_TESTS is set (see the test bodies).
 if(ASR_BUILD_ENGINE)
     set(ASR_ENGINE_TESTS
+        test_engine_api
         test_gguf_projector_type
         test_e2e_transcribe
     )

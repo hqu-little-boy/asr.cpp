@@ -3,6 +3,7 @@
 #include "asr.h"
 
 #include <memory>
+#include <span>
 #include <string>
 #include <vector>
 
@@ -28,6 +29,7 @@ class asr_context {
 
     // Transcribe one chunk of mono PCM (at sample_rate()) in an independent
     // context. Returns {text, language} parsed by the profile.
+    chunk_text transcribe_chunk(std::span<const float> pcm, const transcribe_params & tp);
     chunk_text transcribe_chunk(const std::vector<float> & pcm, const transcribe_params & tp);
 
     // Create a new independent inference context sharing the same model.
