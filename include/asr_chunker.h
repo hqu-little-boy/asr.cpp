@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <span>
 #include <vector>
 
 namespace asr {
@@ -27,5 +28,10 @@ std::vector<audio_chunk> chunk_audio(const float * pcm,
                                      int           sample_rate,
                                      float         chunk_length_s,
                                      float         search_s = 2.0f);
+
+std::vector<audio_chunk> chunk_audio(std::span<const float> pcm,
+                                     int                    sample_rate,
+                                     float                  chunk_length_s,
+                                     float                  search_s = 2.0f);
 
 } // namespace asr
