@@ -14,7 +14,7 @@ add_library(asr_core STATIC
     ${PROJECT_SOURCE_DIR}/src/asr_postprocess.cpp
 )
 target_include_directories(asr_core PUBLIC ${PROJECT_SOURCE_DIR}/include)
-target_compile_features(asr_core PUBLIC cxx_std_20)
+target_compile_features(asr_core PUBLIC cxx_std_23)
 target_link_libraries(asr_core PRIVATE CLI11::CLI11)
 
 # ---------------------------------------------------------------------------
@@ -31,7 +31,7 @@ if(ASR_BUILD_ENGINE)
     add_library(asr_vad STATIC ${PROJECT_SOURCE_DIR}/src/asr_vad.cpp)
     target_include_directories(asr_vad PUBLIC ${PROJECT_SOURCE_DIR}/include)
     target_link_libraries(asr_vad PRIVATE ggml)
-    target_compile_features(asr_vad PRIVATE cxx_std_20)
+    target_compile_features(asr_vad PRIVATE cxx_std_23)
 
     # mtmd-backed engine library.
     add_library(asr_engine STATIC
@@ -42,7 +42,7 @@ if(ASR_BUILD_ENGINE)
     )
     target_include_directories(asr_engine PUBLIC ${PROJECT_SOURCE_DIR}/include)
     target_link_libraries(asr_engine PUBLIC asr_core PRIVATE mtmd llama-common)
-    target_compile_features(asr_engine PRIVATE cxx_std_20)
+    target_compile_features(asr_engine PRIVATE cxx_std_23)
 
     # Wire the CLI to the engine + VAD.
     target_link_libraries(asr-cli PRIVATE asr_engine asr_vad)
