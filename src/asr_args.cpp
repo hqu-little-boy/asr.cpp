@@ -166,7 +166,7 @@ cli_args parse_args(int argc, const char * const * argv) {
             if (const char * v = need(i, arg)) {
                 if (!to_float(v, a.transcribe.repeat_penalty)) { a.error = true; a.error_msg = "invalid number for " + arg + ": " + v; }
             }
-        } else if (arg == "-t" || arg == "--threads") {
+        } else if (arg == "-t" || arg == "--threads" || arg == "-p" || arg == "--processors") {
             if (const char * v = need(i, arg)) {
                 if (!to_int(v, a.model.n_threads)) {
                     a.error = true;
@@ -239,6 +239,7 @@ std::string usage_string(const char * argv0) {
     s += "        --output-format FMT  output format: txt|json|srt|vtt|lrc|csv\n";
     s += "  -np,  --no-prints         only print results\n";
     s += "  -t,   --threads N         number of threads\n";
+    s += "  -p,   --processors N      number of processors (alias for --threads)\n";
     s += "  -ng,  --no-gpu            disable GPU\n";
     s += "        --context TEXT      context / hotwords bias\n";
     s += "  -l,   --language LANG    force language (skip auto-detection)\n";

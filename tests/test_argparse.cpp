@@ -70,6 +70,18 @@ TEST(Args, Threads) {
     EXPECT_EQ(a.model.n_threads, 8);
 }
 
+TEST(Args, ProcessorsFlag) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-p", "4"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_EQ(a.model.n_threads, 4);
+}
+
+TEST(Args, ProcessorsLongFlag) {
+    auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "--processors", "16"});
+    ASSERT_FALSE(a.error) << a.error_msg;
+    EXPECT_EQ(a.model.n_threads, 16);
+}
+
 TEST(Args, ThreadsBadValue) {
     auto a = parse({"asr-cli", "-m", "a", "--mmproj", "p", "x.wav", "-t", "abc"});
     EXPECT_TRUE(a.error);
