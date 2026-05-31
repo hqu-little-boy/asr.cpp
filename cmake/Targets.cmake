@@ -30,7 +30,7 @@ if(ASR_BUILD_ENGINE)
     # FireRedVAD (DFSMN) voice-activity detector; links only ggml (for gguf).
     add_library(asr_vad STATIC ${PROJECT_SOURCE_DIR}/src/asr_vad.cpp)
     target_include_directories(asr_vad PUBLIC ${PROJECT_SOURCE_DIR}/include)
-    target_link_libraries(asr_vad PUBLIC ggml)
+    target_link_libraries(asr_vad PRIVATE ggml)
     target_compile_features(asr_vad PRIVATE cxx_std_17)
 
     # mtmd-backed engine library.
@@ -41,7 +41,7 @@ if(ASR_BUILD_ENGINE)
         ${PROJECT_SOURCE_DIR}/src/asr_driver.cpp
     )
     target_include_directories(asr_engine PUBLIC ${PROJECT_SOURCE_DIR}/include)
-    target_link_libraries(asr_engine PUBLIC asr_core mtmd llama-common)
+    target_link_libraries(asr_engine PUBLIC asr_core PRIVATE mtmd llama-common)
     target_compile_features(asr_engine PRIVATE cxx_std_17)
 
     # Wire the CLI to the engine + VAD.
