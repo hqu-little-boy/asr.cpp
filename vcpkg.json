@@ -2,7 +2,6 @@
   "name": "asr-cpp",
   "version-string": "0.1.0",
   "description": "ASR.cpp - C++ ASR (Automatic Speech Recognition) library",
-  "builtin-baseline": "eae1680538b86f962455c27abca2aad0dc304a4d",
   "dependencies": [
     "cli11",
     "gtest"
