@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Linux (ubuntu-latest) – uses vcpkg + GCC
+  # ──────────────────────────────────────────────
+  test-linux:
+    name: Test · Linux
+    runs-on: ubuntu-latest
+
+    env:
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      # Tell vcpkg to cache built packages to speed up subsequent runs
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # ── vcpkg bootstrap ──────────────────────
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-linux-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-linux-
+
+      - name: Bootstrap vcpkg
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+
+      # ── system dependencies ───────────────────
+      - name: Install system packages
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            build-essential cmake ninja-build \
+            pkg-config libssl-dev libcurl4-openssl-dev \
+            zip unzip tar curl git
+
+      # ── configure & build (no engine) ────────
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+            -DASR_BUILD_ENGINE=OFF \
+            -DASR_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel $(nproc)
+
+      # ── run tests ────────────────────────────
+      - name: Run unit tests
+        working-directory: build
+        run: ctest --output-on-failure --build-config Release -j $(nproc)
+
+  # ──────────────────────────────────────────────
+  # Windows – uses vcpkg + MSVC
+  # ──────────────────────────────────────────────
+  test-windows:
+    name: Test · Windows
+    runs-on: windows-latest
+
+    env:
+      VCPKG_ROOT: C:\vcpkg
+      VCPKG_DEFAULT_BINARY_CACHE: C:\vcpkg-cache
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # ── vcpkg bootstrap ──────────────────────
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-windows-${{ hashFiles('vcpkg.json') }}
+          restore-keys: vcpkg-windows-
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE
+
+      # ── configure & build ─────────────────────
+      - name: Configure CMake
+        shell: pwsh
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
+            -DASR_BUILD_ENGINE=OFF `
+            -DASR_BUILD_TESTS=ON
+
+      - name: Build
+        shell: pwsh
+        run: cmake --build build --config Release --parallel $env:NUMBER_OF_PROCESSORS
+
+      # ── run tests ────────────────────────────
+      - name: Run unit tests
+        working-directory: build
+        shell: pwsh
+        run: ctest --output-on-failure --build-config Release -j $env:NUMBER_OF_PROCESSORS
