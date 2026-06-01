@@ -2,6 +2,9 @@
 
 #include <gtest/gtest.h>
 
+#ifdef _MSC_VER
+#  define _USE_MATH_DEFINES  // make M_PI available on MSVC
+#endif
 #include <cmath>
 #include <vector>
 
