@@ -1,11 +1,12 @@
-#include "asr_chunker.h"
-
-#include <gtest/gtest.h>
-
 #ifdef _MSC_VER
 #  define _USE_MATH_DEFINES  // make M_PI available on MSVC
 #endif
 #include <cmath>
+
+#include "asr_chunker.h"
+
+#include <gtest/gtest.h>
+
 #include <vector>
 
 using asr::audio_chunk;
