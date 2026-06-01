@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-release:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: linux
+            backend: openblas
+            vcpkg_cache: vcpkg-linux-openblas
+            vcpkg_root: /tmp/vcpkg
+            cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
+          - os: ubuntu-latest
+            name: linux
+            backend: vulkan
+            vcpkg_cache: vcpkg-linux-vulkan
+            vcpkg_root: /tmp/vcpkg
+            cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
+          - os: windows-latest
+            name: windows
+            backend: openblas
+            vcpkg_cache: vcpkg-windows-openblas
+            vcpkg_root: C:\vcpkg
+            cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
+          - os: windows-latest
+            name: windows
+            backend: vulkan
+            vcpkg_cache: vcpkg-windows-vulkan
+            vcpkg_root: C:\vcpkg
+            cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
+
+    name: Release · ${{ matrix.name }} (${{ matrix.backend }})
+    runs-on: ${{ matrix.os }}
+
+    env:
+      VCPKG_ROOT: ${{ matrix.vcpkg_root }}
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      # ── vcpkg bootstrap ──────────────────────
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: ${{ matrix.vcpkg_cache }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: ${{ matrix.vcpkg_cache }}-
+
+      - name: Bootstrap vcpkg (Linux)
+        if: matrix.name == 'linux'
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$VCPKG_ROOT"
+          "$VCPKG_ROOT/bootstrap-vcpkg.sh" -disableMetrics
+          mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
+
+      - name: Bootstrap vcpkg (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git $env:VCPKG_ROOT
+          & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE
+
+      # ── system dependencies ───────────────────
+      - name: Install system packages (Linux)
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y \
+            build-essential cmake ninja-build \
+            pkg-config libssl-dev libcurl4-openssl-dev \
+            zip unzip tar curl git
+
+      # ── configure & build ─────────────────────
+      - name: Configure CMake
+        shell: bash
+        run: |
+          cmake -B build \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
+            -DASR_BUILD_ENGINE=ON \
+            -DASR_BUILD_TESTS=OFF \
+            ${{ matrix.cmake_args }}
+
+      - name: Build
+        shell: bash
+        run: cmake --build build --config Release --parallel 4
+
+      # ── package ───────────────────────────────
+      - name: Package Release (Linux)
+        if: matrix.name == 'linux'
+        run: |
+          mkdir -p asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
+          cp build/asr-cli asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+          cp -r models/* asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models/ || true
+          tar -czvf asr-cpp-${{ matrix.name }}-${{ matrix.backend }}.tar.gz asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+
+      - name: Package Release (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
+          Copy-Item build/asr-cli.exe asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+          if (Test-Path models) {
+              Copy-Item -Recurse models/* asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models/ -ErrorAction SilentlyContinue
+          }
+          Compress-Archive -Path asr-cpp-${{ matrix.name }}-${{ matrix.backend }} -DestinationPath asr-cpp-${{ matrix.name }}-${{ matrix.backend }}.zip
+
+      # ── upload ───────────────────────────────
+      - name: Upload Artifact (Linux)
+        if: matrix.name == 'linux'
+        uses: actions/upload-artifact@v4
+        with:
+          name: asr-cpp-${{ matrix.name }}-${{ matrix.backend }}
+          path: asr-cpp-${{ matrix.name }}-${{ matrix.backend }}.tar.gz
+
+      - name: Upload Artifact (Windows)
+        if: matrix.name == 'windows'
+        uses: actions/upload-artifact@v4
+        with:
+          name: asr-cpp-${{ matrix.name }}-${{ matrix.backend }}
+          path: asr-cpp-${{ matrix.name }}-${{ matrix.backend }}.zip
+
+  publish:
+    name: Publish Release
+    needs: build-release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/asr-cpp-linux-openblas.tar.gz
+            artifacts/asr-cpp-linux-vulkan.tar.gz
+            artifacts/asr-cpp-windows-openblas.zip
+            artifacts/asr-cpp-windows-vulkan.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

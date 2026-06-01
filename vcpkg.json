@@ -4,6 +4,8 @@
   "description": "ASR.cpp - C++ ASR (Automatic Speech Recognition) library",
   "dependencies": [
     "cli11",
-    "gtest"
+    "gtest",
+    "openblas",
+    "vulkan"
   ]
 }
