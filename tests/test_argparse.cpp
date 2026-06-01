@@ -254,7 +254,7 @@ TEST(Args, OutputFormatUnknown) {
 
 TEST(Args, ResponseFile) {
     // Write a temp response file with args.
-    const char * path = "/tmp/asr_test_args.txt";
+    const char * path = "asr_test_args.txt";
     {
         std::ofstream f(path);
         f << "-m\na.gguf\n# comment\n--mmproj\np.gguf\n\nx.wav\n";
