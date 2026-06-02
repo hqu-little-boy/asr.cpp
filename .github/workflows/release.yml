@@ -81,7 +81,7 @@ jobs:
           sudo apt-get install -y \
             build-essential cmake ninja-build \
             pkg-config libssl-dev libcurl4-openssl-dev \
-            zip unzip tar curl git
+            zip unzip tar curl git glslc
 
       # ── configure & build ─────────────────────
       - name: Configure CMake

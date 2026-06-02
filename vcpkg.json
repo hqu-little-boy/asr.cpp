@@ -6,7 +6,6 @@
     "cli11",
     "gtest",
     "openblas",
-    "vulkan",
-    "shaderc"
+    "vulkan"
   ]
 }
