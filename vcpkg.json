@@ -11,7 +11,10 @@
   "features": {
     "vulkan-tools": {
       "description": "Shader compiler support required for Vulkan release builds",
-      "dependencies": ["shaderc"]
+      "dependencies": [
+        "shaderc",
+        "spirv-headers"
+      ]
     }
   }
 }
