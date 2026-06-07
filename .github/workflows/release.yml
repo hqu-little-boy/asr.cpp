@@ -22,7 +22,6 @@ jobs:
             backend: openblas
             vcpkg_triplet: x64-linux
             glslc_suffix: ''
-            vcpkg_manifest_features: ''
             vcpkg_cache: vcpkg-linux-openblas
             vcpkg_root: /tmp/vcpkg
             cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
@@ -33,14 +32,12 @@ jobs:
             glslc_suffix: ''
             vcpkg_cache: vcpkg-linux-vulkan
             vcpkg_root: /tmp/vcpkg
-            vcpkg_manifest_features: vulkan-tools
             cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
           - os: windows-latest
             name: windows
             backend: openblas
             vcpkg_triplet: x64-windows
             glslc_suffix: .exe
-            vcpkg_manifest_features: ''
             vcpkg_cache: vcpkg-windows-openblas
             vcpkg_root: C:\vcpkg
             cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
@@ -51,7 +48,6 @@ jobs:
             glslc_suffix: .exe
             vcpkg_cache: vcpkg-windows-vulkan
             vcpkg_root: C:\vcpkg
-            vcpkg_manifest_features: vulkan-tools
             cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
 
     name: Release · ${{ matrix.name }} (${{ matrix.backend }})
@@ -60,7 +56,6 @@ jobs:
     env:
       VCPKG_ROOT: ${{ matrix.vcpkg_root }}
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
-      VCPKG_MANIFEST_FEATURES: ${{ matrix.vcpkg_manifest_features }}
       VULKAN_GLSLC_EXECUTABLE: ${{ matrix.backend == 'vulkan' && format('{0}/build/vcpkg_installed/{1}/tools/shaderc/glslc{2}', github.workspace, matrix.vcpkg_triplet, matrix.glslc_suffix) || '' }}
 
     steps:

@@ -6,15 +6,8 @@
     "cli11",
     "gtest",
     "openblas",
+    "shaderc",
+    "spirv-headers",
     "vulkan"
-  ],
-  "features": {
-    "vulkan-tools": {
-      "description": "Shader compiler support required for Vulkan release builds",
-      "dependencies": [
-        "shaderc",
-        "spirv-headers"
-      ]
-    }
-  }
+  ]
 }
