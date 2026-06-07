@@ -5,35 +5,53 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Tag to publish when dispatching manually from a branch
+        required: false
+        type: string
 
 jobs:
   build-release:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
             name: linux
             backend: openblas
+            vcpkg_triplet: x64-linux
+            glslc_suffix: ''
+            vcpkg_manifest_features: ''
             vcpkg_cache: vcpkg-linux-openblas
             vcpkg_root: /tmp/vcpkg
             cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
           - os: ubuntu-latest
             name: linux
             backend: vulkan
+            vcpkg_triplet: x64-linux
+            glslc_suffix: ''
             vcpkg_cache: vcpkg-linux-vulkan
             vcpkg_root: /tmp/vcpkg
+            vcpkg_manifest_features: vulkan-tools
             cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
           - os: windows-latest
             name: windows
             backend: openblas
+            vcpkg_triplet: x64-windows
+            glslc_suffix: .exe
+            vcpkg_manifest_features: ''
             vcpkg_cache: vcpkg-windows-openblas
             vcpkg_root: C:\vcpkg
             cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
           - os: windows-latest
             name: windows
             backend: vulkan
+            vcpkg_triplet: x64-windows
+            glslc_suffix: .exe
             vcpkg_cache: vcpkg-windows-vulkan
             vcpkg_root: C:\vcpkg
+            vcpkg_manifest_features: vulkan-tools
             cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
 
     name: Release · ${{ matrix.name }} (${{ matrix.backend }})
@@ -42,6 +60,8 @@ jobs:
     env:
       VCPKG_ROOT: ${{ matrix.vcpkg_root }}
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+      VCPKG_MANIFEST_FEATURES: ${{ matrix.vcpkg_manifest_features }}
+      VULKAN_GLSLC_EXECUTABLE: ${{ matrix.backend == 'vulkan' && format('{0}/build/vcpkg_installed/{1}/tools/shaderc/glslc{2}', github.workspace, matrix.vcpkg_triplet, matrix.glslc_suffix) || '' }}
 
     steps:
       - name: Checkout (with submodules)
@@ -81,18 +101,23 @@ jobs:
           sudo apt-get install -y \
             build-essential cmake ninja-build \
             pkg-config libssl-dev libcurl4-openssl-dev \
-            zip unzip tar curl git glslc
+            zip unzip tar curl git
 
       # ── configure & build ─────────────────────
       - name: Configure CMake
         shell: bash
         run: |
+          GLSLC_ARGS=()
+          if [[ -n "${VULKAN_GLSLC_EXECUTABLE}" ]]; then
+            GLSLC_ARGS=(-DVulkan_GLSLC_EXECUTABLE="${VULKAN_GLSLC_EXECUTABLE}")
+          fi
           cmake -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
             -DASR_BUILD_ENGINE=ON \
             -DASR_BUILD_TESTS=OFF \
+            "${GLSLC_ARGS[@]}" \
             ${{ matrix.cmake_args }}
 
       - name: Build
@@ -104,7 +129,7 @@ jobs:
         if: matrix.name == 'linux'
         run: |
           mkdir -p asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
-          cp build/asr-cli asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+          cp build/bin/asr-cli asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
           cp -r models/* asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models/ || true
           tar -czvf asr-cpp-${{ matrix.name }}-${{ matrix.backend }}.tar.gz asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
 
@@ -113,7 +138,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
-          Copy-Item build/asr-cli.exe asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+          Copy-Item build/bin/asr-cli.exe asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
           if (Test-Path models) {
               Copy-Item -Recurse models/* asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models/ -ErrorAction SilentlyContinue
           }
@@ -138,8 +163,27 @@ jobs:
     name: Publish Release
     needs: build-release
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     steps:
+      - name: Determine release tag
+        id: release-tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ -n "${{ inputs.release_tag }}" ]]; then
+              release_tag="${{ inputs.release_tag }}"
+            elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+              release_tag="${GITHUB_REF_NAME}"
+            else
+              echo "release_tag input is required when dispatching from a branch" >&2
+              exit 1
+            fi
+          else
+            release_tag="${GITHUB_REF_NAME}"
+          fi
+
+          echo "release_tag=${release_tag}" >> "$GITHUB_OUTPUT"
+
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -149,6 +193,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.release-tag.outputs.release_tag }}
           files: |
             artifacts/asr-cpp-linux-openblas.tar.gz
             artifacts/asr-cpp-linux-vulkan.tar.gz
