@@ -129,7 +129,11 @@ jobs:
         if: matrix.name == 'linux'
         run: |
           mkdir -p asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
-          cp build/bin/asr-cli asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+          exe=build/bin/asr-cli
+          if [[ ! -f "$exe" ]]; then
+            exe=build/asr-cli
+          fi
+          cp "$exe" asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
           cp -r models/* asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models/ || true
           tar -czvf asr-cpp-${{ matrix.name }}-${{ matrix.backend }}.tar.gz asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
 
@@ -138,7 +142,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
-          Copy-Item build/bin/asr-cli.exe asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
+          $exe = "build/bin/asr-cli.exe"
+          if (-not (Test-Path $exe)) {
+              $exe = "build/asr-cli.exe"
+          }
+          Copy-Item $exe asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/
           if (Test-Path models) {
               Copy-Item -Recurse models/* asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models/ -ErrorAction SilentlyContinue
           }
