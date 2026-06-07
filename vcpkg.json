@@ -6,6 +6,7 @@
     "cli11",
     "gtest",
     "openblas",
+    "pkgconf",
     "shaderc",
     "spirv-headers",
     "vulkan"

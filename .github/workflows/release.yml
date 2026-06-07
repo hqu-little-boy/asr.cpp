@@ -22,6 +22,7 @@ jobs:
             backend: openblas
             vcpkg_triplet: x64-linux
             glslc_suffix: ''
+            pkgconfig_suffix: ''
             vcpkg_cache: vcpkg-linux-openblas
             vcpkg_root: /tmp/vcpkg
             cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
@@ -30,6 +31,7 @@ jobs:
             backend: vulkan
             vcpkg_triplet: x64-linux
             glslc_suffix: ''
+            pkgconfig_suffix: ''
             vcpkg_cache: vcpkg-linux-vulkan
             vcpkg_root: /tmp/vcpkg
             cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
@@ -38,6 +40,7 @@ jobs:
             backend: openblas
             vcpkg_triplet: x64-windows
             glslc_suffix: .exe
+            pkgconfig_suffix: .exe
             vcpkg_cache: vcpkg-windows-openblas
             vcpkg_root: C:\vcpkg
             cmake_args: -DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_VULKAN=OFF
@@ -46,6 +49,7 @@ jobs:
             backend: vulkan
             vcpkg_triplet: x64-windows
             glslc_suffix: .exe
+            pkgconfig_suffix: .exe
             vcpkg_cache: vcpkg-windows-vulkan
             vcpkg_root: C:\vcpkg
             cmake_args: -DGGML_BLAS=OFF -DGGML_VULKAN=ON
@@ -56,6 +60,7 @@ jobs:
     env:
       VCPKG_ROOT: ${{ matrix.vcpkg_root }}
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
+      PKG_CONFIG_EXECUTABLE: ${{ matrix.os == 'windows-latest' && format('{0}/build/vcpkg_installed/{1}/tools/pkgconf/pkgconf{2}', github.workspace, matrix.vcpkg_triplet, matrix.pkgconfig_suffix) || '' }}
       VULKAN_GLSLC_EXECUTABLE: ${{ matrix.backend == 'vulkan' && format('{0}/build/vcpkg_installed/{1}/tools/shaderc/glslc{2}', github.workspace, matrix.vcpkg_triplet, matrix.glslc_suffix) || '' }}
 
     steps:
@@ -102,6 +107,10 @@ jobs:
       - name: Configure CMake
         shell: bash
         run: |
+          PKGCONFIG_ARGS=()
+          if [[ -n "${PKG_CONFIG_EXECUTABLE}" ]]; then
+            PKGCONFIG_ARGS=(-DPKG_CONFIG_EXECUTABLE="${PKG_CONFIG_EXECUTABLE}")
+          fi
           GLSLC_ARGS=()
           if [[ -n "${VULKAN_GLSLC_EXECUTABLE}" ]]; then
             GLSLC_ARGS=(-DVulkan_GLSLC_EXECUTABLE="${VULKAN_GLSLC_EXECUTABLE}")
@@ -112,6 +121,7 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
             -DASR_BUILD_ENGINE=ON \
             -DASR_BUILD_TESTS=OFF \
+            "${PKGCONFIG_ARGS[@]}" \
             "${GLSLC_ARGS[@]}" \
             ${{ matrix.cmake_args }}
 
