@@ -101,7 +101,8 @@ jobs:
           sudo apt-get install -y \
             build-essential cmake ninja-build \
             pkg-config libssl-dev libcurl4-openssl-dev \
-            zip unzip tar curl git
+            zip unzip tar curl git \
+            glslang-tools
 
       # ── configure & build ─────────────────────
       - name: Configure CMake (Linux)
@@ -113,8 +114,10 @@ jobs:
             PKGCONFIG_ARGS=(-DPKG_CONFIG_EXECUTABLE="${PKG_CONFIG_EXECUTABLE}")
           fi
           GLSLC_ARGS=()
-          if [[ -n "${VULKAN_GLSLC_EXECUTABLE}" ]]; then
+          if [[ -n "${VULKAN_GLSLC_EXECUTABLE}" && -x "${VULKAN_GLSLC_EXECUTABLE}" ]]; then
             GLSLC_ARGS=(-DVulkan_GLSLC_EXECUTABLE="${VULKAN_GLSLC_EXECUTABLE}")
+          elif command -v glslc &>/dev/null; then
+            GLSLC_ARGS=(-DVulkan_GLSLC_EXECUTABLE="$(command -v glslc)")
           fi
           cmake -B build \
             -G Ninja \
