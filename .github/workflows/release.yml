@@ -71,13 +71,6 @@ jobs:
           fetch-depth: 0
 
       # ── vcpkg bootstrap ──────────────────────
-      - name: Cache vcpkg binary packages
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: ${{ matrix.vcpkg_cache }}-${{ hashFiles('vcpkg.json') }}
-          restore-keys: ${{ matrix.vcpkg_cache }}-
-
       - name: Bootstrap vcpkg (Linux)
         if: matrix.name == 'linux'
         run: |
@@ -93,6 +86,13 @@ jobs:
           & "$env:VCPKG_ROOT\bootstrap-vcpkg.bat" -disableMetrics
           New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE
 
+      - name: Cache vcpkg binary packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: ${{ matrix.vcpkg_cache }}-${{ hashFiles('vcpkg.json') }}
+          restore-keys: ${{ matrix.vcpkg_cache }}-
+
       # ── system dependencies ───────────────────
       - name: Install system packages (Linux)
         if: matrix.name == 'linux'
@@ -104,7 +104,8 @@ jobs:
             zip unzip tar curl git
 
       # ── configure & build ─────────────────────
-      - name: Configure CMake
+      - name: Configure CMake (Linux)
+        if: matrix.name == 'linux'
         shell: bash
         run: |
           PKGCONFIG_ARGS=()
@@ -125,9 +126,25 @@ jobs:
             "${GLSLC_ARGS[@]}" \
             ${{ matrix.cmake_args }}
 
-      - name: Build
+      - name: Configure CMake (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          cmake -B build `
+            -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
+            -DASR_BUILD_ENGINE=ON `
+            -DASR_BUILD_TESTS=OFF `
+            ${{ matrix.cmake_args }}
+
+      - name: Build (Linux)
+        if: matrix.name == 'linux'
         shell: bash
-        run: cmake --build build --config Release --parallel 4
+        run: cmake --build build --config Release --parallel $(nproc)
+
+      - name: Build (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: cmake --build build --config Release --parallel $env:NUMBER_OF_PROCESSORS
 
       # ── package ───────────────────────────────
       - name: Package Release (Linux)
@@ -147,7 +164,13 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path asr-cpp-${{ matrix.name }}-${{ matrix.backend }}/models
-          $exe = "build/bin/asr-cli.exe"
+          $exe = "build/Release/asr-cli.exe"
+          if (-not (Test-Path $exe)) {
+              $exe = "build/bin/Release/asr-cli.exe"
+          }
+          if (-not (Test-Path $exe)) {
+              $exe = "build/bin/asr-cli.exe"
+          }
           if (-not (Test-Path $exe)) {
               $exe = "build/asr-cli.exe"
           }
