@@ -60,8 +60,8 @@ jobs:
     env:
       VCPKG_ROOT: ${{ matrix.vcpkg_root }}
       VCPKG_DEFAULT_BINARY_CACHE: ${{ github.workspace }}/.vcpkg-cache
-      PKG_CONFIG_EXECUTABLE: ${{ matrix.os == 'windows-latest' && format('{0}/build/vcpkg_installed/{1}/tools/pkgconf/pkgconf{2}', github.workspace, matrix.vcpkg_triplet, matrix.pkgconfig_suffix) || '' }}
-      VULKAN_GLSLC_EXECUTABLE: ${{ matrix.backend == 'vulkan' && format('{0}/build/vcpkg_installed/{1}/tools/shaderc/glslc{2}', github.workspace, matrix.vcpkg_triplet, matrix.glslc_suffix) || '' }}
+PKG_CONFIG_EXECUTABLE: ${{ matrix.os == 'windows-latest' && format('{0}/installed/{1}/tools/pkgconf/pkgconf{2}', matrix.vcpkg_root, matrix.vcpkg_triplet, matrix.pkgconfig_suffix) || '' }}
+VULKAN_GLSLC_EXECUTABLE: ${{ matrix.backend == 'vulkan' && format('{0}/installed/{1}/bin/glslc{2}', matrix.vcpkg_root, matrix.vcpkg_triplet, matrix.glslc_suffix) || '' }}
 
     steps:
       - name: Checkout (with submodules)
