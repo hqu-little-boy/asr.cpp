@@ -91,8 +91,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
-          key: ${{ matrix.vcpkg_cache }}-static-${{ hashFiles('vcpkg.json') }}
-          restore-keys: ${{ matrix.vcpkg_cache }}-static-
+          key: ${{ matrix.vcpkg_cache }}-static-v2-${{ hashFiles('vcpkg.json') }}
+          restore-keys: ${{ matrix.vcpkg_cache }}-static-v2-
 
       # ── system dependencies ───────────────────
       - name: Install system packages (Linux)
