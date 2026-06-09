@@ -140,11 +140,9 @@ jobs:
 
           Write-Host ""
           Write-Host "=== Testing --help output ==="
-          try {
-            ./asr-cli.exe --help
-          } catch {
-            Write-Host "Note: --help returned non-zero exit code (expected)"
-          }
+          $ErrorActionPreference = 'Continue'
+          ./asr-cli.exe --help 2>&1
+          Write-Host "Exit code: $LASTEXITCODE"
 
           Write-Host ""
           Write-Host "=== Verifying models directory ==="
