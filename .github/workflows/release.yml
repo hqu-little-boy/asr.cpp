@@ -136,6 +136,7 @@ jobs:
         run: |
           cmake -B build `
             -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
             -DASR_BUILD_ENGINE=ON `
             -DASR_BUILD_TESTS=OFF `
