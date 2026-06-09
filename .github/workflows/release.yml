@@ -38,7 +38,7 @@ jobs:
           - os: windows-latest
             name: windows
             backend: openblas
-            vcpkg_triplet: x64-windows
+            vcpkg_triplet: x64-windows-static
             glslc_suffix: .exe
             pkgconfig_suffix: .exe
             vcpkg_cache: vcpkg-windows-openblas
@@ -47,7 +47,7 @@ jobs:
           - os: windows-latest
             name: windows
             backend: vulkan
-            vcpkg_triplet: x64-windows
+            vcpkg_triplet: x64-windows-static
             glslc_suffix: .exe
             pkgconfig_suffix: .exe
             vcpkg_cache: vcpkg-windows-vulkan
