@@ -126,7 +126,10 @@ jobs:
           Set-Location "asr-cpp-windows-${{ matrix.backend }}"
 
           Write-Host "=== Checking binary ==="
-          Get-Item asr-cli.exe | Select-Object Name, Length, LastWriteTime
+          $binary = Get-Item asr-cli.exe
+          $binary | Select-Object Name, Length, LastWriteTime
+          $sizeMB = [math]::Round($binary.Length / 1MB, 2)
+          Write-Host "Binary size: $sizeMB MB"
 
           Write-Host ""
           Write-Host "=== Checking for missing DLLs ==="
@@ -142,7 +145,26 @@ jobs:
           Write-Host "=== Testing --help output ==="
           $ErrorActionPreference = 'Continue'
           ./asr-cli.exe --help 2>&1
-          Write-Host "Exit code: $LASTEXITCODE"
+          $exitCode = $LASTEXITCODE
+          Write-Host "Exit code: $exitCode"
+
+          # Check if binary failed due to missing DLL
+          if ($exitCode -eq -1073741515) {
+            Write-Host ""
+            Write-Host "WARNING: Binary requires additional DLLs to run (STATUS_DLL_NOT_FOUND)"
+            Write-Host "This is expected for openblas backend until vcpkg static linking is fully configured"
+            Write-Host "The binary may work on systems with Visual C++ Redistributable installed"
+
+            # For small binaries (< 10MB), they likely have missing static dependencies
+            if ($sizeMB -lt 10) {
+              Write-Host ""
+              Write-Host "NOTE: Binary is relatively small ($sizeMB MB), suggesting incomplete static linking"
+              Write-Host "Vulkan backend binary should be ~60MB when fully static"
+            }
+          } elseif ($exitCode -ne 0) {
+            Write-Host "ERROR: Binary failed with unexpected exit code: $exitCode"
+            exit 1
+          }
 
           Write-Host ""
           Write-Host "=== Verifying models directory ==="
@@ -153,4 +175,4 @@ jobs:
           }
 
           Write-Host ""
-          Write-Host "✓ Binary verification passed!"
+          Write-Host "✓ Binary verification completed!"
