@@ -41,17 +41,18 @@ jobs:
         shell: bash
         run: |
           RELEASE_TAG="${{ steps.release-tag.outputs.release_tag }}"
+          mkdir -p "$RUNNER_TEMP/release"
           gh release download "${RELEASE_TAG}" \
             --repo ${{ github.repository }} \
             --pattern "asr-cpp-linux-${{ matrix.backend }}.tar.gz" \
-            --dir /tmp/release
+            --dir "$RUNNER_TEMP/release"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract and verify binary
         shell: bash
         run: |
-          cd /tmp/release
+          cd "$RUNNER_TEMP/release"
           tar -xzf asr-cpp-linux-${{ matrix.backend }}.tar.gz
           cd asr-cpp-linux-${{ matrix.backend }}
 
@@ -108,19 +109,21 @@ jobs:
         shell: bash
         run: |
           RELEASE_TAG="${{ steps.release-tag.outputs.release_tag }}"
+          mkdir -p "$RUNNER_TEMP/release"
           gh release download "${RELEASE_TAG}" \
             --repo ${{ github.repository }} \
             --pattern "asr-cpp-windows-${{ matrix.backend }}.zip" \
-            --dir /tmp/release
+            --dir "$RUNNER_TEMP/release"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract and verify binary
         shell: pwsh
         run: |
-          cd /tmp/release
+          $releaseDir = "$env:RUNNER_TEMP\release"
+          Set-Location $releaseDir
           Expand-Archive -Path "asr-cpp-windows-${{ matrix.backend }}.zip" -DestinationPath .
-          cd "asr-cpp-windows-${{ matrix.backend }}"
+          Set-Location "asr-cpp-windows-${{ matrix.backend }}"
 
           Write-Host "=== Checking binary ==="
           Get-Item asr-cli.exe | Select-Object Name, Length, LastWriteTime
