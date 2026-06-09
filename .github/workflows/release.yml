@@ -138,6 +138,7 @@ jobs:
           cmake -B build `
             -DBUILD_SHARED_LIBS=OFF `
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
             -DASR_BUILD_ENGINE=ON `
             -DASR_BUILD_TESTS=OFF `
