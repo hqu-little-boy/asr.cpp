@@ -122,6 +122,7 @@ jobs:
           cmake -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=OFF \
             -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
             -DASR_BUILD_ENGINE=ON \
             -DASR_BUILD_TESTS=OFF \
@@ -134,6 +135,7 @@ jobs:
         shell: pwsh
         run: |
           cmake -B build `
+            -DBUILD_SHARED_LIBS=OFF `
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT\scripts\buildsystems\vcpkg.cmake" `
             -DASR_BUILD_ENGINE=ON `
             -DASR_BUILD_TESTS=OFF `

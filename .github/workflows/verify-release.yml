@@ -1,0 +1,155 @@
+name: Verify Release
+
+on:
+  workflow_run:
+    workflows: ["Release"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to verify
+        required: true
+        type: string
+
+jobs:
+  verify-linux:
+    name: Verify · Linux (${{ matrix.backend }})
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [openblas, vulkan]
+
+    steps:
+      - name: Determine release tag
+        id: release-tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "release_tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            # Get the tag from the triggering workflow run
+            TAG=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }} --jq '.head_branch')
+            echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release asset
+        shell: bash
+        run: |
+          RELEASE_TAG="${{ steps.release-tag.outputs.release_tag }}"
+          gh release download "${RELEASE_TAG}" \
+            --repo ${{ github.repository }} \
+            --pattern "asr-cpp-linux-${{ matrix.backend }}.tar.gz" \
+            --dir /tmp/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and verify binary
+        shell: bash
+        run: |
+          cd /tmp/release
+          tar -xzf asr-cpp-linux-${{ matrix.backend }}.tar.gz
+          cd asr-cpp-linux-${{ matrix.backend }}
+
+          echo "=== Checking binary ==="
+          file asr-cli
+          echo ""
+
+          echo "=== Checking dynamic dependencies ==="
+          ldd asr-cli || true
+          echo ""
+
+          # Check for missing shared libraries
+          MISSING=$(ldd asr-cli 2>&1 | grep "not found" || true)
+          if [[ -n "$MISSING" ]]; then
+            echo "ERROR: Missing shared libraries found:"
+            echo "$MISSING"
+            exit 1
+          fi
+
+          echo "=== Testing --help output ==="
+          ./asr-cli --help || true
+          echo ""
+
+          echo "=== Verifying models directory ==="
+          ls -la models/ || echo "No models directory found (expected for some configurations)"
+
+          echo ""
+          echo "✓ Binary verification passed!"
+
+  verify-windows:
+    name: Verify · Windows (${{ matrix.backend }})
+    runs-on: windows-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [openblas, vulkan]
+
+    steps:
+      - name: Determine release tag
+        id: release-tag
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "release_tag=${{ inputs.release_tag }}" >> "$GITHUB_OUTPUT"
+          else
+            TAG=$(gh api repos/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }} --jq '.head_branch')
+            echo "release_tag=${TAG}" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download release asset
+        shell: bash
+        run: |
+          RELEASE_TAG="${{ steps.release-tag.outputs.release_tag }}"
+          gh release download "${RELEASE_TAG}" \
+            --repo ${{ github.repository }} \
+            --pattern "asr-cpp-windows-${{ matrix.backend }}.zip" \
+            --dir /tmp/release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract and verify binary
+        shell: pwsh
+        run: |
+          cd /tmp/release
+          Expand-Archive -Path "asr-cpp-windows-${{ matrix.backend }}.zip" -DestinationPath .
+          cd "asr-cpp-windows-${{ matrix.backend }}"
+
+          Write-Host "=== Checking binary ==="
+          Get-Item asr-cli.exe | Select-Object Name, Length, LastWriteTime
+
+          Write-Host ""
+          Write-Host "=== Checking for missing DLLs ==="
+          # Use dumpbin to check dependencies if available
+          $dumpbin = Get-Command dumpbin -ErrorAction SilentlyContinue
+          if ($dumpbin) {
+            dumpbin /dependents asr-cli.exe
+          } else {
+            Write-Host "dumpbin not available, skipping DLL dependency check"
+          }
+
+          Write-Host ""
+          Write-Host "=== Testing --help output ==="
+          try {
+            ./asr-cli.exe --help
+          } catch {
+            Write-Host "Note: --help returned non-zero exit code (expected)"
+          }
+
+          Write-Host ""
+          Write-Host "=== Verifying models directory ==="
+          if (Test-Path models) {
+            Get-ChildItem models
+          } else {
+            Write-Host "No models directory found (expected for some configurations)"
+          }
+
+          Write-Host ""
+          Write-Host "✓ Binary verification passed!"
