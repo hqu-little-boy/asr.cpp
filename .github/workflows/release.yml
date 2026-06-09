@@ -133,6 +133,8 @@ jobs:
       - name: Configure CMake (Windows)
         if: matrix.name == 'windows'
         shell: pwsh
+        env:
+          VCPKG_CRT_LINKAGE: static
         run: |
           cmake -B build `
             -DBUILD_SHARED_LIBS=OFF `
