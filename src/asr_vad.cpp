@@ -133,6 +133,9 @@ void cpu_linear(const float * x, const float * w, const float * b, float * out, 
     for (int t = 0; t < T; t++) {
         for (int n = 0; n < N; n++) {
             double s = 0;
+#ifdef _OPENMP
+#pragma omp simd reduction(+:s)
+#endif
             for (int k = 0; k < K; k++) {
                 s += x[t * K + k] * w[n * K + k];
             }
@@ -168,6 +171,9 @@ void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la
     for (int p = 0; p < P; p++) {
         for (int t_out = 0; t_out < lb_out_len; t_out++) {
             float s = 0;
+#ifdef _OPENMP
+#pragma omp simd reduction(+:s)
+#endif
             for (int k = 0; k < N1; k++) {
                 int t_in = t_out - lb_pad + k * S1;
                 if (t_in >= 0 && t_in < T) s += lb_w[p * N1 + k] * x_pt[p * T + t_in];
@@ -194,6 +200,9 @@ void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la
         for (int p = 0; p < P; p++) {
             for (int t_out = 0; t_out < la_out_len; t_out++) {
                 float s = 0;
+#ifdef _OPENMP
+#pragma omp simd reduction(+:s)
+#endif
                 for (int k = 0; k < N2; k++) {
                     int t_in = t_out - la_pad + k * S2;
                     if (t_in >= 0 && t_in < T) s += la_w[p * N2 + k] * x_pt[p * T + t_in];
