@@ -74,7 +74,7 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
     int n_workers = std::max(1, std::min(processors, (int) windows.size()));
 
     // Sequential path (n_workers == 1): process chunks in order.
-run_sequential:
+
     if (n_workers <= 1) {
         std::vector<chunk_result> results;
         results.reserve(windows.size());
@@ -123,9 +123,8 @@ run_sequential:
     for (int i = 1; i < n_workers; ++i) {
         auto w = ctx.clone();
         if (!w) {
-            std::fprintf(stderr, "error: failed to create worker %d, falling back to sequential\n", i);
-            n_workers = 1;
-            goto run_sequential;
+            std::fprintf(stderr, "error: failed to create worker %d (likely out of memory).\n", i);
+            return false;
         }
         workers.push_back(w.get());
         clones.push_back(std::move(w));
