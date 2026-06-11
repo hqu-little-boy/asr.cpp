@@ -127,6 +127,9 @@ bool load_model(const std::string & path, firered_model & m) {
 
 // out[t,n] = sum_k x[t,k]*w[n,k] + b[n]   (double accumulation, as in reference)
 void cpu_linear(const float * x, const float * w, const float * b, float * out, int T, int K, int N) {
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
     for (int t = 0; t < T; t++) {
         for (int n = 0; n < N; n++) {
             double s = 0;
@@ -149,6 +152,9 @@ void cpu_relu(float * x, int n) {
 void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la_w,
               int T, int P, int N1, int S1, int N2, int S2) {
     std::vector<float> x_pt((size_t) P * T);
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
     for (int p = 0; p < P; p++)
         for (int t = 0; t < T; t++)
             x_pt[p * T + t] = x[t * P + p];
@@ -156,6 +162,9 @@ void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la
     const int lb_pad     = (N1 - 1) * S1;
     const int lb_out_len = T + lb_pad;
     std::vector<float> lb_conv((size_t) P * lb_out_len, 0.0f);
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
     for (int p = 0; p < P; p++) {
         for (int t_out = 0; t_out < lb_out_len; t_out++) {
             float s = 0;
@@ -168,6 +177,9 @@ void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la
     }
 
     memcpy(out, x, (size_t) T * P * sizeof(float)); // residual
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
     for (int p = 0; p < P; p++)
         for (int t = 0; t < T; t++)
             out[t * P + p] += lb_conv[p * lb_out_len + t];
@@ -176,6 +188,9 @@ void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la
         const int la_pad     = (N2 - 1) * S2;
         const int la_out_len = T + la_pad;
         std::vector<float> la_conv((size_t) P * la_out_len, 0.0f);
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
         for (int p = 0; p < P; p++) {
             for (int t_out = 0; t_out < la_out_len; t_out++) {
                 float s = 0;
@@ -187,6 +202,9 @@ void cpu_fsmn(const float * x, float * out, const float * lb_w, const float * la
             }
         }
         const int skip = N2 * S2;
+#ifdef _OPENMP
+#pragma omp parallel for
+#endif
         for (int p = 0; p < P; p++)
             for (int t = 0; t < T; t++) {
                 int la_idx = skip + t;

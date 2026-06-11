@@ -34,6 +34,10 @@ if(ASR_BUILD_ENGINE)
     target_include_directories(asr_vad PUBLIC ${PROJECT_SOURCE_DIR}/include)
     target_link_libraries(asr_vad PRIVATE ggml)
     target_compile_features(asr_vad PRIVATE cxx_std_23)
+    find_package(OpenMP)
+    if(OpenMP_CXX_FOUND)
+        target_link_libraries(asr_vad PRIVATE OpenMP::OpenMP_CXX)
+    endif()
 
     # mtmd-backed engine library.
     add_library(asr_engine STATIC
