@@ -62,9 +62,11 @@ std::unique_ptr<asr_context> asr_context::load(const model_params & mp, bool qui
         ggml_backend_load_all();
         backends_loaded = true;
     }
-    // Mute logging before the model is loaded so --no-prints is actually quiet.
+    // Configure logging before the model is loaded.
     if (quiet) {
         set_log_quiet();
+    } else {
+        set_log_default();
     }
 
     common_params params;
@@ -301,6 +303,15 @@ void quiet_log_cb(enum ggml_log_level level, const char * text, void * /*user_da
         std::fputs(text, stderr);
     }
 }
+
+void default_log_cb(enum ggml_log_level level, const char * text, void * /*user_data*/) {
+#ifdef NDEBUG
+    if (level == GGML_LOG_LEVEL_DEBUG) {
+        return;
+    }
+#endif
+    std::fputs(text, stderr);
+}
 } // namespace
 
 void set_log_quiet() {
@@ -308,6 +319,12 @@ void set_log_quiet() {
     llama_log_set(quiet_log_cb, nullptr);
     mtmd_helper_log_set(quiet_log_cb, nullptr); // also routes mtmd_log_set
     common_log_set_verbosity_thold(1); // LOG_LEVEL_ERROR only (suppress INFO/WARN)
+}
+
+void set_log_default() {
+    ggml_log_set(default_log_cb, nullptr);
+    llama_log_set(default_log_cb, nullptr);
+    mtmd_helper_log_set(default_log_cb, nullptr);
 }
 
 } // namespace asr

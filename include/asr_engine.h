@@ -52,5 +52,6 @@ class asr_context {
 // Route ggml / llama / mtmd logging to error-only (used for --no-prints to mute
 // the verbose per-chunk encode/decode messages).
 void set_log_quiet();
+void set_log_default();
 
 } // namespace asr
