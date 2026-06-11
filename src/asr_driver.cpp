@@ -33,7 +33,8 @@ chunk_result transcribe_one(asr_context & ctx, const audio_chunk & w,
 
 bool transcribe_file(asr_context & ctx, const std::string & path,
                      const transcribe_params & tp, bool quiet, result & out,
-                     vad_context * vad, const vad_params & vp, int processors) {
+                     vad_context * vad, const vad_params & vp, int processors,
+                     std::atomic<bool> * cancel) {
     std::vector<float> pcm;
     if (!ctx.load_audio(path, pcm)) {
         std::fprintf(stderr, "error: failed to load audio '%s'\n", path.c_str());
@@ -45,7 +46,7 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
     // Segment the audio: VAD or fixed-window chunker.
     std::vector<audio_chunk> windows;
     if (vad != nullptr) {
-        const auto segs = vad->detect(pcm.data(), (int) pcm.size(), vp);
+        const auto segs = vad->detect(pcm.data(), (int) pcm.size(), vp, cancel);
         for (const auto & s : segs) {
             audio_chunk w;
             w.offset = (size_t) (s.start_sec * sr);
@@ -78,6 +79,10 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
         results.reserve(windows.size());
         std::string carry;
         for (size_t wi = 0; wi < windows.size(); ++wi) {
+            if (cancel && cancel->load()) {
+                std::fprintf(stderr, "\nasr: cancelled\n");
+                break;
+            }
             const auto & w = windows[wi];
             if (!quiet) {
                 std::fprintf(stderr, "\rasr: [%zu/%zu] segment %.1f-%.1f s",
@@ -139,6 +144,7 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
     auto worker_fn = [&](int worker_id) {
         asr_context & wctx = *workers[worker_id];
         for (const auto & item : per_worker[worker_id]) {
+            if (cancel && cancel->load()) break;
             transcribe_params tp_chunk = tp;
             tp_chunk.carry_context = false; // no carry-over in parallel mode
             auto cr = transcribe_one(wctx, item.chunk, pcm, sr, tp_chunk, true); // quiet=true, print below

@@ -282,7 +282,7 @@ void compute_fbank(const float * pcm, int n_samples, std::vector<float> & featur
 }
 
 // Run fbank + CMVN + DFSMN forward, returning per-frame speech probabilities.
-std::vector<float> forward_probs(const firered_model & m, const float * pcm, int n_samples) {
+std::vector<float> forward_probs(const firered_model & m, const float * pcm, int n_samples, std::atomic<bool> * cancel) {
     const hparams & hp = m.hp;
 
     std::vector<float> features;
@@ -311,6 +311,7 @@ std::vector<float> forward_probs(const firered_model & m, const float * pcm, int
 
     std::vector<float> tmp_h((size_t) T * hp.H), tmp_p((size_t) T * hp.P), tmp_mem((size_t) T * hp.P);
     for (const auto & b : m.blocks) {
+        if (cancel && cancel->load()) return {};
         cpu_linear(mem.data(), b.fc1_w.data(), b.fc1_b.data(), tmp_h.data(), T, hp.P, hp.H);
         cpu_relu(tmp_h.data(), T * hp.H);
         cpu_linear(tmp_h.data(), b.fc2_w.data(), nullptr, tmp_p.data(), T, hp.H, hp.P);
@@ -344,16 +345,17 @@ std::unique_ptr<vad_context> vad_context::load(const std::string & model_path) {
     return self;
 }
 
-std::vector<float> vad_context::frame_probs(const float * pcm, int n_samples) const {
+std::vector<float> vad_context::frame_probs(const float * pcm, int n_samples, std::atomic<bool> * cancel) const {
     if (!pcm || n_samples <= 0) return {};
-    return forward_probs(p_->model, pcm, n_samples);
+    return forward_probs(p_->model, pcm, n_samples, cancel);
 }
 
-std::vector<vad_segment> vad_context::detect(const float * pcm, int n_samples, const vad_params & params) const {
+std::vector<vad_segment> vad_context::detect(const float * pcm, int n_samples, const vad_params & params, std::atomic<bool> * cancel) const {
     std::vector<vad_segment> segs;
     if (!pcm || n_samples <= 0) return segs;
 
-    const std::vector<float> probs = forward_probs(p_->model, pcm, n_samples);
+    const std::vector<float> probs = forward_probs(p_->model, pcm, n_samples, cancel);
+    if (cancel && cancel->load()) return segs;
     const int T = (int) probs.size();
     if (T <= 0) return segs;
 

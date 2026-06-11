@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,10 +33,10 @@ class vad_context {
     vad_context & operator=(const vad_context &) = delete;
 
     // Detect speech segments in 16 kHz mono PCM.
-    std::vector<vad_segment> detect(const float * pcm, int n_samples, const vad_params & p) const;
+    std::vector<vad_segment> detect(const float * pcm, int n_samples, const vad_params & p, std::atomic<bool> * cancel = nullptr) const;
 
     // Per-frame (10 ms) speech probabilities — exposed for testing/debugging.
-    std::vector<float> frame_probs(const float * pcm, int n_samples) const;
+    std::vector<float> frame_probs(const float * pcm, int n_samples, std::atomic<bool> * cancel = nullptr) const;
 
   private:
     vad_context();

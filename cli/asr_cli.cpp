@@ -67,7 +67,7 @@ int main(int argc, char ** argv) {
 
         asr::result r;
         if (!asr::transcribe_file(*ctx, file, args.transcribe, args.output.no_prints,
-                                  r, vad.get(), vp, args.processors)) {
+                                  r, vad.get(), vp, args.processors, &g_interrupted)) {
             ret = 1;
             continue;
         }

@@ -4,6 +4,7 @@
 #include "asr_engine.h"
 #include "asr_vad.h"
 
+#include <atomic>
 #include <string>
 
 namespace asr {
@@ -27,6 +28,7 @@ bool transcribe_file(asr_context & ctx, const std::string & path,
                      result & out,
                      vad_context * vad = nullptr,
                      const vad_params & vp = vad_params{},
-                     int processors = 1);
+                     int processors = 1,
+                     std::atomic<bool> * cancel = nullptr);
 
 } // namespace asr
