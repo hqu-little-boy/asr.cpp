@@ -14,8 +14,9 @@ Working end to end for text transcription with optional VAD segmentation. Curren
 | --- | --- | --- |
 | Qwen3-ASR-1.7B | ~1.7 GB (Q8_0) | [HuggingFace](https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF) |
 | Qwen3-ASR-0.6B | ~0.6 GB (Q8_0) | [HuggingFace](https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF) |
+| Oruk Fourier-2B *(English-only, CC BY-NC 4.0)* | ~2.19 GB total (Q8_0: 1.83 GB + 356 MB mmproj) | [HuggingFace](https://huggingface.co/oruk/oruk-fourier-2b/tree/main/gguf/llama-cpp) |
 
-Each model requires a main GGUF file and a corresponding mmproj GGUF file. Both are included in the download links above.
+Each model requires a main GGUF file and a corresponding mmproj GGUF file. Both are included in the download links above. Oruk Fourier-2B uses the same `qwen3a` projector (`clip.audio.projector_type = qwen3a`), so the `qwen3a` profile is auto-selected without extra flags.
 
 A **FireRedVAD** (Voice Activity Detection) model is bundled in the `models/` directory for speech segmentation.
 
@@ -126,6 +127,20 @@ done
     audio.wav -otxt -oj
 ```
 
+With **Oruk Fourier-2B** (English-only, CC BY-NC 4.0 — download directly from [`oruk/oruk-fourier-2b`](https://huggingface.co/oruk/oruk-fourier-2b/tree/main/gguf/llama-cpp)):
+
+```sh
+huggingface-cli download oruk/oruk-fourier-2b \
+    gguf/llama-cpp/Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    gguf/llama-cpp/mmproj-Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    --local-dir models/oruk-fourier-2b
+
+./build/asr-cli \
+    -m models/oruk-fourier-2b/gguf/llama-cpp/Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    --mmproj models/oruk-fourier-2b/gguf/llama-cpp/mmproj-Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    audio.wav -otxt -oj
+```
+
 Common options:
 
 | Option | Meaning |
@@ -217,8 +232,9 @@ ASR_RUN_MODEL_TESTS=1 ctest --test-dir build-engine
 | --- | --- | --- |
 | Qwen3-ASR-1.7B | ~1.7 GB (Q8_0) | [HuggingFace](https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF) |
 | Qwen3-ASR-0.6B | ~0.6 GB (Q8_0) | [HuggingFace](https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF) |
+| Oruk Fourier-2B *（仅英语，CC BY-NC 4.0）* | 共 ~2.19 GB（Q8_0：1.83 GB + 356 MB mmproj） | [HuggingFace](https://huggingface.co/oruk/oruk-fourier-2b/tree/main/gguf/llama-cpp) |
 
-每个模型需要主模型 GGUF 文件和对应的 mmproj GGUF 文件，均可在上述链接下载。
+每个模型需要主模型 GGUF 文件和对应的 mmproj GGUF 文件，均可在上述链接下载。Oruk Fourier-2B 使用相同的 `qwen3a` 投影器（`clip.audio.projector_type = qwen3a`），无需额外参数即可自动匹配 `qwen3a` 配置。
 
 **FireRedVAD**（语音活动检测）模型已放置在 `models/` 目录中，用于语音分段。
 
@@ -326,6 +342,20 @@ done
 ./build/asr-cli \
     -m models/Qwen3-ASR-0.6B-Q8_0.gguf \
     --mmproj models/mmproj-Qwen3-ASR-0.6B-bf16.gguf \
+    audio.wav -otxt -oj
+```
+
+使用 **Oruk Fourier-2B**（仅英语，CC BY-NC 4.0，可直接从 [`oruk/oruk-fourier-2b`](https://huggingface.co/oruk/oruk-fourier-2b/tree/main/gguf/llama-cpp) 下载）：
+
+```sh
+huggingface-cli download oruk/oruk-fourier-2b \
+    gguf/llama-cpp/Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    gguf/llama-cpp/mmproj-Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    --local-dir models/oruk-fourier-2b
+
+./build/asr-cli \
+    -m models/oruk-fourier-2b/gguf/llama-cpp/Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
+    --mmproj models/oruk-fourier-2b/gguf/llama-cpp/mmproj-Qwen3-ASR-Oruk-Fourier-2B-Q8_0.gguf \
     audio.wav -otxt -oj
 ```
 
